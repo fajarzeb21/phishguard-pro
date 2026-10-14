@@ -17,3 +17,5 @@ backend/investigations.db
 # Frontend
 frontend/node_modules/
 frontend/dist/
+.neon
+node_modules/
