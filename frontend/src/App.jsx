@@ -28,9 +28,11 @@ import {
   Server,
   Database,
   ArrowLeft,
+  KeyRound,
 } from "lucide-react";
 
 import "./App.css";
+import PasswordChecker from "./PasswordChecker";
 
 const API_URL = "/api";
 
@@ -1700,6 +1702,11 @@ function App() {
       icon: <History size={19} />,
     },
     {
+  id: "password-checker",
+  label: "Password Checker",
+  icon: <KeyRound size={19} />,
+    },
+    {
       id: "reports",
       label: "Reports",
       icon: <FileText size={19} />,
@@ -1737,6 +1744,8 @@ function App() {
             onNavigate={navigateTo}
           />
         );
+        case "password-checker":
+  return <PasswordChecker />;
 
       case "reports":
         return (
@@ -1919,16 +1928,24 @@ function App() {
           <div className="footer-brand">
             <ShieldCheck size={17} />
             <span>PhishGuard Pro</span>
-          </div>
+              </div>
 
           <p>
-            Security analysis for educational and defensive purposes.
+
+            
+
           </p>
 
-          <span className="footer-version">Local Workspace</span>
+          <span className="footer-version"></span>
+
         </footer>
+
       </div>
+
     </div>
+                  
+          
+    
   );
 }
 
