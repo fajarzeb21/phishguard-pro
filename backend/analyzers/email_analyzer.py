@@ -35,7 +35,7 @@ URL_PATTERN = re.compile(
 )
 
 ATTACHMENT_EXTENSIONS = {
-    ".exe", ".scr", ".bat", ".cmd", ".com", ".msi",
+    ".exe", ".scr", ".bat", ".cmd", ".msi",
     ".vbs", ".js", ".jse", ".ps1", ".hta", ".jar",
     ".iso", ".img", ".lnk",
 }
