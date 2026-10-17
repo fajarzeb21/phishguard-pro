@@ -24,11 +24,7 @@ import "./App.css";
 import PasswordChecker from "./PasswordChecker";
 
 // Backend API configuration
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"
-).replace(/\/+$/, "");
-
-const API_URL = `${API_BASE_URL}/api`;
+const API_URL = "/api";
 
 // Send requests to the Flask backend
 async function requestAPI(endpoint, data) {
