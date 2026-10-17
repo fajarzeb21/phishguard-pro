@@ -388,7 +388,7 @@ def analyze_url(url):
     threat_intelligence = check_threat_intelligence(normalized_url)
     # DNS intelligence
     dns_intelligence = analyze_dns(hostname)
-
+    print("DNS ANALYSIS RESULT:", dns_intelligence)
     if (
         threat_intelligence.get("available") is True
         and threat_intelligence.get("known_phishing") is True

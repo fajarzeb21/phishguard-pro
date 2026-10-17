@@ -1,5 +1,6 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+
 import {
   ShieldCheck,
   ShieldAlert,
@@ -7,1779 +8,1068 @@ import {
   LayoutDashboard,
   Link as LinkIcon,
   Mail,
-  History,
-  FileText,
+  Globe,
+  AlertTriangle,
+  ArrowRight,
+  LockKeyhole,
+  Activity,
+  CheckCircle2,
+  XCircle,
+  LoaderCircle,
   Menu,
   X,
-  ArrowRight,
-  ExternalLink,
-  Download,
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Activity,
-  Globe,
-  Eye,
-  ChevronRight,
-  LockKeyhole,
-  Bug,
-  CircleHelp,
-  Server,
-  Database,
-  ArrowLeft,
-  KeyRound,
 } from "lucide-react";
 
 import "./App.css";
 import PasswordChecker from "./PasswordChecker";
 
-const API_URL = "/api";
+// Backend API configuration
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:5000"
+).replace(/\/+$/, "");
 
-/* -------------------- HELPERS -------------------- */
+const API_URL = `${API_BASE_URL}/api`;
 
-function formatDate(date) {
-  if (!date) return "Unknown date";
+// Send requests to the Flask backend
+async function requestAPI(endpoint, data) {
+  let response;
 
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return String(date);
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+  } catch {
+    throw new Error(
+      "Cannot connect to the backend. Check that your backend is running and your API URL is correct."
+    );
   }
 
-  return parsedDate.toLocaleString();
-}
+  let result;
 
-function getRiskClass(level) {
-  const risk = String(level || "unknown").toLowerCase();
-
-  if (risk === "high" || risk === "critical") return "high";
-  if (risk === "medium" || risk === "moderate") return "medium";
-  if (risk === "low") return "low";
-
-  return "unknown";
-}
-
-function getRiskIcon(level) {
-  const risk = String(level || "").toLowerCase();
-
-  if (risk === "high" || risk === "critical") {
-    return <ShieldAlert size={18} />;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("The backend returned an invalid response.");
   }
 
-  if (risk === "medium" || risk === "moderate") {
-    return <AlertTriangle size={18} />;
+  if (!response.ok || result.success === false) {
+    throw new Error(
+      result.error || result.message || "The analysis request failed."
+    );
   }
 
-  return <ShieldCheck size={18} />;
+  return result;
 }
 
-function getTarget(item) {
-  return (
-    item?.target ||
-    item?.url ||
-    item?.email ||
-    item?.sender ||
-    item?.subject ||
-    "Unknown target"
+// Format risk levels consistently
+function getRiskLevel(result) {
+  return String(
+    result?.risk_level ||
+      result?.riskLevel ||
+      result?.risk ||
+      "Unknown"
   );
 }
 
-function getScore(item) {
+// Get numerical risk score
+function getRiskScore(result) {
   const score = Number(
-    item?.risk_score ??
-      item?.score ??
-      item?.result?.risk_score ??
-      item?.result_json?.risk_score ??
+    result?.risk_score ??
+      result?.score ??
+      result?.security_score ??
       0
   );
 
-  return Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  return Number.isFinite(score)
+    ? Math.min(100, Math.max(0, score))
+    : 0;
 }
 
-function getLevel(item) {
-  return (
-    item?.risk_level ||
-    item?.result?.risk_level ||
-    item?.result_json?.risk_level ||
-    "Unknown"
-  );
-}
-
-function getResultData(item) {
-  if (!item) return {};
-
-  if (typeof item.result_json === "string") {
-    try {
-      return JSON.parse(item.result_json);
-    } catch {
-      return item;
-    }
+// Get findings from the backend
+function getFindings(result) {
+  if (Array.isArray(result?.findings)) {
+    return result.findings;
   }
 
-  if (
-    item.result_json &&
-    typeof item.result_json === "object"
-  ) {
-    return item.result_json;
-  }
-
-  if (item.result && typeof item.result === "object") {
-    return item.result;
-  }
-
-  if (item.analysis && typeof item.analysis === "object") {
-    return item.analysis;
-  }
-
-  return item;
-}
-
-function getFindings(item) {
-  const data = getResultData(item);
-
-  if (Array.isArray(data.findings)) {
-    return data.findings;
-  }
-
-  if (Array.isArray(item?.findings)) {
-    return item.findings;
+  if (Array.isArray(result?.results)) {
+    return result.results;
   }
 
   return [];
 }
 
-function getFindingTitle(finding) {
-  if (typeof finding === "string") return finding;
-
-  return (
-    finding?.title ||
-    finding?.name ||
-    finding?.type ||
-    finding?.category ||
-    "Security finding"
-  );
-}
-
-function getFindingDescription(finding) {
-  if (typeof finding === "string") return finding;
-
-  return (
-    finding?.description ||
-    finding?.message ||
-    finding?.details ||
-    finding?.evidence ||
-    "No additional details provided."
-  );
-}
-
-function getFindingSeverity(finding) {
-  if (typeof finding === "string") return "info";
-
-  return (
+// Format finding severity
+function getSeverity(finding) {
+  return String(
     finding?.severity ||
-    finding?.risk ||
-    finding?.level ||
-    "info"
-  );
+      finding?.status ||
+      finding?.risk ||
+      "info"
+  ).toLowerCase();
 }
 
-function displayValue(value) {
-  if (value === null || value === undefined || value === "") {
-    return "Not available";
+// Convert severity to an existing CSS status class
+function getStatusClass(severity) {
+  const value = String(severity).toLowerCase();
+
+  if (
+    ["safe", "secure", "pass", "passed", "success", "good", "low"].includes(
+      value
+    )
+  ) {
+    return "low";
   }
 
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "None found";
+  if (["medium", "moderate", "warning"].includes(value)) {
+    return "medium";
   }
 
-  if (typeof value === "object") {
-    return JSON.stringify(value);
+  if (
+    ["high", "critical", "danger", "error", "failed"].includes(value)
+  ) {
+    return "high";
   }
 
-  return String(value);
+  return "unknown";
 }
 
-/* -------------------- SHARED COMPONENTS -------------------- */
-
-function StatCard({ title, value, description, icon, color }) {
-  return (
-    <div className="stat-card">
-      <div className={`stat-icon ${color || ""}`}>{icon}</div>
-
-      <div className="stat-content">
-        <p>{title}</p>
-        <h2>{value ?? 0}</h2>
-        {description && <span>{description}</span>}
-      </div>
-    </div>
-  );
-}
-
-function RiskBadge({ level }) {
-  const riskClass = getRiskClass(level);
+// Display finding status
+function FindingStatus({ finding }) {
+  const severity = getSeverity(finding);
+  const statusClass = getStatusClass(severity);
 
   return (
-    <span className={`risk-badge risk-${riskClass}`}>
-      {getRiskIcon(level)}
-      <span>{level || "Unknown"}</span>
+    <span className={`status-badge status-${statusClass}`}>
+      {severity}
     </span>
   );
 }
 
-function EmptyState({ icon, title, description }) {
+// DNS Report Component
+function DNSReport({ dnsData }) {
+  if (!dnsData) {
+    return (
+      <section className="dns-report">
+        <div className="dns-report-header">
+          <div>
+            <span className="page-eyebrow">
+              DOMAIN INTELLIGENCE
+            </span>
+            <h2>DNS Report</h2>
+            <p>
+              DNS information was not included in the backend response.
+            </p>
+          </div>
+
+          <div className="dns-report-icon">
+            <Globe size={24} />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const records = [
+    {
+      key: "ip_addresses",
+      label: "IPv4 Addresses",
+      type: "A",
+    },
+    {
+      key: "ipv6_addresses",
+      label: "IPv6 Addresses",
+      type: "AAAA",
+    },
+    {
+      key: "mx_records",
+      label: "Mail Exchange Records",
+      type: "MX",
+    },
+    {
+      key: "nameservers",
+      label: "Nameservers",
+      type: "NS",
+    },
+  ];
+
+  function getRecordValues(key) {
+    const values = dnsData[key];
+
+    if (Array.isArray(values)) {
+      return values;
+    }
+
+    if (typeof values === "string" && values.trim()) {
+      return [values];
+    }
+
+    return [];
+  }
+
   return (
-    <div className="empty-state">
-      <div className="empty-state-icon">
-        {icon || <Database size={30} />}
-      </div>
-
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </div>
-  );
-}
-
-function LoadingState({ message = "Analyzing security data..." }) {
-  return (
-    <div className="loading-state">
-      <div className="loading-spinner" />
-      <p>{message}</p>
-    </div>
-  );
-}
-
-function ErrorMessage({ message, onRetry }) {
-  if (!message) return null;
-
-  return (
-    <div className="error-message">
-      <AlertTriangle size={20} />
-
-      <div>
-        <strong>Something went wrong</strong>
-        <p>{message}</p>
-
-        {onRetry && (
-          <button className="text-button" onClick={onRetry}>
-            Try again
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function RiskScoreCard({ result }) {
-  const score = getScore(result);
-  const level = getLevel(result);
-  const riskClass = getRiskClass(level);
-
-  return (
-    <section className="panel risk-score-panel">
-      <div className="section-heading">
+    <section className="dns-report">
+      <div className="dns-report-header">
         <div>
-          <h3>Threat Assessment</h3>
-          <p>Overall security risk evaluation</p>
+          <span className="page-eyebrow">
+            DOMAIN INTELLIGENCE
+          </span>
+          <h2>DNS Report</h2>
+          <p>Domain infrastructure information</p>
         </div>
 
-        <RiskBadge level={level} />
+        <div className="dns-report-icon">
+          <Globe size={24} />
+        </div>
       </div>
 
-      <div className="risk-score-layout">
-        <div className={`risk-score-circle risk-circle-${riskClass}`}>
-          <div className="risk-score-inner">
-            <strong>{score}</strong>
-            <span>out of 100</span>
-          </div>
-        </div>
+      <div className="dns-hostname">
+        <span>Hostname</span>
+        <strong>{dnsData.hostname || "Unknown"}</strong>
+      </div>
 
-        <div className="risk-score-details">
-          <h4>{level} Risk</h4>
+      <div className="dns-record-grid">
+        {records.map((record) => {
+          const values = getRecordValues(record.key);
 
-          <p>
-            {score >= 70
-              ? "Multiple indicators suggest a potentially dangerous target. Exercise extreme caution."
-              : score >= 40
-                ? "Some suspicious indicators were detected. Review the findings before interacting with this target."
-                : score >= 20
-                  ? "A few indicators require attention. Review the analysis before trusting this target."
-                  : "Few risk indicators were identified by the current checks. This does not guarantee safety."}
-          </p>
-
-          <div className="risk-progress">
+          return (
             <div
-              className={`risk-progress-fill risk-fill-${riskClass}`}
-              style={{ width: `${score}%` }}
-            />
-          </div>
-        </div>
+              className="dns-record-card"
+              key={record.key}
+            >
+              <div className="dns-record-card-heading">
+                <span className="dns-record-type">
+                  {record.type}
+                </span>
+
+                <h3>{record.label}</h3>
+              </div>
+
+              {values.length > 0 ? (
+                <ul className="dns-record-list">
+                  {values.map((value, index) => (
+                    <li key={`${record.key}-${index}`}>
+                      <code>
+                        {typeof value === "object"
+                          ? JSON.stringify(value)
+                          : String(value)}
+                      </code>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="dns-empty-value">
+                  {dnsData.available === false
+                    ? "Lookup unavailable for this target."
+                    : "None found"}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {Array.isArray(dnsData.findings) && (
+        <div className="dns-findings">
+          <h3>DNS Findings</h3>
+
+          {dnsData.findings.length > 0 ? (
+            dnsData.findings.map((finding, index) => (
+              <div
+                className="dns-finding-item"
+                key={`${finding.name || "finding"}-${index}`}
+              >
+                <AlertTriangle size={17} />
+
+                <div>
+                  <strong>
+                    {finding.name || "DNS Finding"}
+                  </strong>
+
+                  <p>
+                    {finding.evidence ||
+                      finding.message ||
+                      finding.description ||
+                      "No additional details are available."}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p>No DNS findings were returned.</p>
+          )}
+        </div>
+      )}
+
+      <p className="dns-report-note">
+        DNS records provide technical information about a domain.
+        Missing records do not automatically mean that a website is
+        malicious, and DNS records alone cannot establish trustworthiness.
+      </p>
     </section>
   );
 }
 
-function FindingsList({ result }) {
-  const findings = getFindings(result);
+// Threat Intelligence Component
+function ThreatIntelligence({ data }) {
+  if (!data) {
+    return null;
+  }
+
+  const providers =
+    typeof data === "object" && data !== null
+      ? Object.entries(data)
+      : [];
+
+  function formatLabel(value) {
+    return value
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+
+  function formatValue(value) {
+    if (value === null || value === undefined || value === "") {
+      return "Not available";
+    }
+
+    if (typeof value === "boolean") {
+      return value ? "Yes" : "No";
+    }
+
+    if (typeof value === "object") {
+      return JSON.stringify(value, null, 2);
+    }
+
+    return String(value);
+  }
 
   return (
-    <section className="panel findings-panel">
-      <div className="section-heading">
+    <section className="dns-report">
+      <div className="dns-report-header">
         <div>
-          <h3>Analysis Findings</h3>
-          <p>Indicators identified during the investigation</p>
+          <span className="page-eyebrow">
+            THREAT INTELLIGENCE
+          </span>
+
+          <h2>Threat Intelligence Results</h2>
+
+          <p>External threat indicator information</p>
         </div>
 
-        <span className="findings-count">{findings.length} findings</span>
+        <div className="dns-report-icon">
+          <ShieldAlert size={24} />
+        </div>
       </div>
 
-      {findings.length === 0 ? (
-        <EmptyState
-          icon={<CheckCircle size={28} />}
-          title="No findings returned"
-          description="The analyzer did not report any findings. This does not prove the target is safe."
-        />
+      {providers.length > 0 ? (
+        <div className="dns-record-grid">
+          {providers.map(([key, value]) => (
+            <div
+              className="dns-record-card"
+              key={key}
+            >
+              <div className="dns-record-card-heading">
+                <span className="dns-record-type">
+                  TI
+                </span>
+
+                <h3>{formatLabel(key)}</h3>
+              </div>
+
+              {typeof value === "object" &&
+              value !== null &&
+              !Array.isArray(value) ? (
+                <ul className="dns-record-list">
+                  {Object.entries(value).map(
+                    ([nestedKey, nestedValue]) => (
+                      <li key={nestedKey}>
+                        <strong>
+                          {formatLabel(nestedKey)}:
+                        </strong>{" "}
+                        <code>{formatValue(nestedValue)}</code>
+                      </li>
+                    )
+                  )}
+                </ul>
+              ) : (
+                <p>{formatValue(value)}</p>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
-        <div className="findings-list">
-          {findings.map((finding, index) => {
-            const severity = getFindingSeverity(finding);
+        <p>No threat intelligence information was returned.</p>
+      )}
 
-            return (
-              <div className="finding-item" key={index}>
-                <div className={`finding-icon severity-${getRiskClass(severity)}`}>
-                  {getRiskIcon(severity)}
-                </div>
+      <p className="dns-report-note">
+        No match in a threat intelligence database does not guarantee
+        that a URL is safe.
+      </p>
+    </section>
+  );
+}
 
-                <div className="finding-content">
-                  <div className="finding-title-row">
-                    <h4>{getFindingTitle(finding)}</h4>
+// Analysis Results Component
+function AnalysisResult({ result, type }) {
+  if (!result) {
+    return null;
+  }
 
-                    <span
-                      className={`severity-badge severity-${getRiskClass(
-                        severity
-                      )}`}
-                    >
-                      {severity}
-                    </span>
+  const score = getRiskScore(result);
+  const riskLevel = getRiskLevel(result);
+  const normalizedRisk = getStatusClass(riskLevel);
+  const findings = getFindings(result);
+
+  const target =
+    result.url ||
+    result.email ||
+    result.target ||
+    result.hostname ||
+    "Analysis target";
+
+  const dnsData =
+    result.dns_intelligence ||
+    result.dns_report ||
+    result.dns ||
+    null;
+
+  const threatData =
+    result.threat_intelligence ||
+    result.threat_intel ||
+    null;
+
+  return (
+    <div className="result-panel">
+      <div className="section-heading">
+        <div>
+          <span className="page-eyebrow">
+            INVESTIGATION COMPLETE
+          </span>
+
+          <h2>Analysis Results</h2>
+        </div>
+
+        <div className="score-icon">
+          {normalizedRisk === "high" ? (
+            <ShieldAlert size={25} />
+          ) : (
+            <ShieldCheck size={25} />
+          )}
+        </div>
+      </div>
+
+      <div className="analyzed-target">
+        <span>Analyzed Target</span>
+        <strong>{target}</strong>
+
+        {result.investigation_id !== undefined && (
+          <p>Investigation ID: #{result.investigation_id}</p>
+        )}
+      </div>
+
+      <div className="result-score-card">
+        <div className="score-label">
+          <div>
+            <span>Threat Assessment</span>
+            <h3>{riskLevel} Risk</h3>
+          </div>
+
+          <span className={`status-badge status-${normalizedRisk}`}>
+            {riskLevel}
+          </span>
+        </div>
+
+        <div className="score-icon">
+          {normalizedRisk === "high" ? (
+            <ShieldAlert size={24} />
+          ) : (
+            <ShieldCheck size={24} />
+          )}
+        </div>
+
+        <div className="score-progress">
+          <div
+            className="score-progress-fill"
+            style={{ width: `${score}%` }}
+          />
+        </div>
+
+        <p>
+          Risk score: <strong>{score}/100</strong>
+        </p>
+
+        <p>
+          {result.message ||
+            result.summary ||
+            "Review the findings below to understand the indicators identified during this investigation."}
+        </p>
+
+        <div className="result-type">
+          <Activity size={17} />
+
+          <span>
+            {findings.length} finding
+            {findings.length === 1 ? "" : "s"} identified
+          </span>
+        </div>
+      </div>
+
+      <div className="findings-section">
+        <div className="section-heading">
+          <div>
+            <span className="page-eyebrow">
+              INVESTIGATION DETAILS
+            </span>
+
+            <h3>Analysis Findings</h3>
+          </div>
+        </div>
+
+        {findings.length > 0 ? (
+          <div className="findings-list">
+            {findings.map((finding, index) => {
+              const severity = getSeverity(finding);
+
+              const isPositive = [
+                "low",
+                "safe",
+                "secure",
+                "pass",
+                "passed",
+                "success",
+                "good",
+                "info",
+                "informational",
+              ].includes(severity);
+
+              return (
+                <div
+                  className="finding-card"
+                  key={
+                    finding.id ||
+                    `${finding.name || finding.title || "finding"}-${index}`
+                  }
+                >
+                  <div className="finding-icon">
+                    {isPositive ? (
+                      <CheckCircle2 size={20} />
+                    ) : (
+                      <AlertTriangle size={20} />
+                    )}
                   </div>
 
-                  <p>{getFindingDescription(finding)}</p>
+                  <div className="finding-content">
+                    <div className="finding-title-row">
+                      <h4>
+                        {finding.name ||
+                          finding.title ||
+                          finding.check ||
+                          `Finding ${index + 1}`}
+                      </h4>
 
-                  {finding?.points !== undefined && (
-                    <span className="finding-points">
-                      Risk points: {finding.points}
-                    </span>
-                  )}
+                      <FindingStatus finding={finding} />
+                    </div>
+
+                    <p>
+                      {finding.evidence ||
+                        finding.description ||
+                        finding.message ||
+                        finding.details ||
+                        "No additional details were returned by the backend."}
+                    </p>
+
+                    {finding.points !== undefined && (
+                      <p>
+                        Risk points: {finding.points}
+                      </p>
+                    )}
+
+                    {finding.recommendation && (
+                      <div>
+                        <strong>Recommendation</strong>
+                        <p>{finding.recommendation}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-result">
+            <CheckCircle2 size={22} />
+            <p>No findings were returned by the analyzer.</p>
+          </div>
+        )}
+      </div>
+
+      {type === "url" && (
+        <>
+          <DNSReport dnsData={dnsData} />
+
+          {threatData && (
+            <ThreatIntelligence data={threatData} />
+          )}
+        </>
+      )}
+
+      <div className="result-disclaimer">
+        <ShieldCheck size={19} />
+
+        <p>
+          <strong>Important:</strong>{" "}
+          {result.disclaimer ||
+            "This analysis provides indicators for investigation. It cannot guarantee that a URL or email is safe or malicious. Verify suspicious findings before taking action."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Dashboard Page
+function DashboardPage({ setPage }) {
+  const features = [
+    {
+      title: "URL Analysis",
+      description:
+        "Investigate URLs for suspicious indicators and domain information.",
+      icon: LinkIcon,
+      page: "url",
+    },
+    {
+      title: "Email Analysis",
+      description:
+        "Examine email content for phishing indicators and suspicious language.",
+      icon: Mail,
+      page: "email",
+    },
+    {
+      title: "Password Checker",
+      description:
+        "Evaluate password strength and identify common weaknesses.",
+      icon: LockKeyhole,
+      page: "password",
+    },
+  ];
+
+  return (
+    <div className="dashboard-page">
+      <section className="welcome-banner">
+        <div className="welcome-content">
+          <span className="welcome-label">
+            PHISHGUARD PRO
+          </span>
+
+          <h1>
+            Investigate threats.
+            <br />
+            <span>Protect digital identities.</span>
+          </h1>
+
+          <p>
+            Your cybersecurity investigation dashboard for identifying
+            suspicious URLs, analyzing phishing emails, and checking
+            password strength.
+          </p>
+
+          <button
+            className="primary-button"
+            onClick={() => setPage("url")}
+          >
+            Start Investigation
+            <ArrowRight size={18} />
+          </button>
+        </div>
+
+        <div className="welcome-icon">
+          <ShieldCheck size={100} strokeWidth={1.2} />
+        </div>
+      </section>
+
+      <section className="dashboard-section">
+        <div className="section-heading">
+          <div>
+            <span className="page-eyebrow">
+              SECURITY TOOLS
+            </span>
+
+            <h2>Investigation Center</h2>
+          </div>
+        </div>
+
+        <div className="feature-grid">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+
+            return (
+              <button
+                className="feature-card"
+                key={feature.page}
+                onClick={() => setPage(feature.page)}
+              >
+                <div className="feature-icon">
+                  <Icon size={24} />
+                </div>
+
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+
+                <span className="feature-action">
+                  Open Tool
+                  <ArrowRight size={16} />
+                </span>
+              </button>
             );
           })}
         </div>
-      )}
-    </section>
-  );
-}
-
-/* -------------------- INTELLIGENCE PANELS -------------------- */
-
-function ThreatIntelligencePanel({ threat }) {
-  if (!threat) {
-    return (
-      <section className="panel intelligence-panel">
-        <div className="intelligence-heading">
-          <div className="intelligence-icon threat-icon">
-            <ShieldCheck size={22} />
-          </div>
-
-          <div>
-            <h3>Threat Intelligence</h3>
-            <p>External phishing database lookup</p>
-          </div>
-        </div>
-
-        <p className="intelligence-empty">
-          No threat intelligence data was returned.
-        </p>
       </section>
-    );
-  }
 
-  const available = threat.available === true;
-  const knownPhishing = threat.known_phishing === true;
-
-  return (
-    <section className="panel intelligence-panel">
-      <div className="intelligence-heading">
-        <div className="intelligence-icon threat-icon">
-          <ShieldCheck size={22} />
+      <section className="privacy-notice">
+        <div>
+          <ShieldAlert size={22} />
         </div>
 
         <div>
-          <h3>Threat Intelligence</h3>
-          <p>{threat.provider || "External threat database"}</p>
-        </div>
-      </div>
+          <h3>Investigate Before You Trust</h3>
 
-      <div className="intelligence-grid">
-        <div className="intelligence-item">
-          <span>Provider</span>
-          <strong>{displayValue(threat.provider)}</strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Lookup Status</span>
-          <strong className={available ? "status-good" : "status-warning"}>
-            {available ? "Available" : "Unavailable"}
-          </strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Phishing Database Match</span>
-          <strong
-            className={
-              !available
-                ? "status-warning"
-                : knownPhishing
-                  ? "status-danger"
-                  : "status-good"
-            }
-          >
-            {!available
-              ? "Unable to verify"
-              : knownPhishing
-                ? "Match Found"
-                : "No Match Found"}
-          </strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Target Brand</span>
-          <strong>{displayValue(threat.target_brand)}</strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Threat Status</span>
-          <strong>{displayValue(threat.status)}</strong>
-        </div>
-      </div>
-
-      <div className="intelligence-message">
-        <p>
-          {threat.message ||
-            "The provider did not return an explanation."}
-        </p>
-      </div>
-
-      {!available && (
-        <p className="intelligence-note">
-          The threat database could not be reached. This is an inconclusive
-          result, not evidence that the target is safe.
-        </p>
-      )}
-    </section>
-  );
-}
-
-function DNSIntelligencePanel({ dns }) {
-  if (!dns) {
-    return (
-      <section className="panel intelligence-panel">
-        <div className="intelligence-heading">
-          <div className="intelligence-icon dns-icon">
-            <Server size={22} />
-          </div>
-
-          <div>
-            <h3>DNS Intelligence</h3>
-            <p>Domain infrastructure information</p>
-          </div>
-        </div>
-
-        <p className="intelligence-empty">
-          No DNS intelligence data was returned.
-        </p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="panel intelligence-panel">
-      <div className="intelligence-heading">
-        <div className="intelligence-icon dns-icon">
-          <Server size={22} />
-        </div>
-
-        <div>
-          <h3>DNS Intelligence</h3>
-          <p>Domain infrastructure information</p>
-        </div>
-      </div>
-
-      <div className="intelligence-grid">
-        <div className="intelligence-item">
-          <span>Hostname</span>
-          <strong>{displayValue(dns.hostname)}</strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Lookup Status</span>
-          <strong className={dns.available ? "status-good" : "status-warning"}>
-            {dns.available ? "Available" : "Unavailable"}
-          </strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>IPv4 Addresses</span>
-          <strong>{displayValue(dns.ip_addresses)}</strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>IPv6 Addresses</span>
-          <strong>{displayValue(dns.ipv6_addresses)}</strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Mail Exchange Records</span>
-          <strong>{displayValue(dns.mx_records)}</strong>
-        </div>
-
-        <div className="intelligence-item">
-          <span>Nameservers</span>
-          <strong>{displayValue(dns.nameservers)}</strong>
-        </div>
-      </div>
-
-      <div className="dns-findings">
-        <h4>DNS Findings</h4>
-
-        {Array.isArray(dns.findings) && dns.findings.length > 0 ? (
-          <ul>
-            {dns.findings.map((finding, index) => (
-              <li key={index}>
-                {typeof finding === "string"
-                  ? finding
-                  : finding.message ||
-                    finding.description ||
-                    JSON.stringify(finding)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No additional DNS findings were reported.</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* -------------------- COMPLETE ANALYSIS RESULT -------------------- */
-
-function AnalysisResult({ result }) {
-  if (!result) return null;
-
-  const data = getResultData(result);
-  const target = getTarget({ ...data, ...result });
-  const isUrlAnalysis =
-    Boolean(data.url || result.url) &&
-    !result.analysis_type?.toLowerCase().includes("email");
-
-  const threat = data.threat_intelligence;
-  const dns = data.dns_intelligence;
-
-  return (
-    <div className="analysis-result">
-      <div className="panel result-target-panel">
-        <div className="result-target-icon">
-          {isUrlAnalysis ? <Globe size={22} /> : <Mail size={22} />}
-        </div>
-
-        <div className="result-target-content">
-          <p>Investigated Target</p>
-          <h3>{target}</h3>
-
-          {result.id && (
-            <span className="investigation-id">
-              Investigation ID: #{result.id}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <RiskScoreCard result={{ ...data, ...result }} />
-
-      <FindingsList result={data} />
-
-      {isUrlAnalysis && <ThreatIntelligencePanel threat={threat} />}
-
-      {isUrlAnalysis && <DNSIntelligencePanel dns={dns} />}
-
-      <div className="disclaimer-box">
-        <CircleHelp size={20} />
-
-        <div>
-          <strong>Important Security Notice</strong>
           <p>
-            This assessment combines heuristic checks with available external
-            intelligence. A URL not found in a threat database is not
-            necessarily safe. HTTPS does not prove a website is legitimate,
-            and DNS records alone cannot establish whether a domain is
-            malicious or trustworthy.
+            Never enter passwords or sensitive information on suspicious
+            websites. Use investigation tools as one part of your security
+            checks.
           </p>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* -------------------- DASHBOARD -------------------- */
-
-function DashboardPage({ history, onNavigate, loading }) {
-  const total = history.length;
-
-  const highRisk = history.filter((item) => {
-    const level = String(getLevel(item)).toLowerCase();
-    return level === "high" || level === "critical";
-  }).length;
-
-  const lowRisk = history.filter(
-    (item) => String(getLevel(item)).toLowerCase() === "low"
-  ).length;
-
-  const mediumRisk = history.filter((item) => {
-    const level = String(getLevel(item)).toLowerCase();
-    return level === "medium" || level === "moderate";
-  }).length;
-
-  const recentInvestigations = history.slice(0, 5);
-
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">SECURITY OVERVIEW</span>
-          <h1>Dashboard</h1>
-          <p>Monitor your phishing investigations and security findings.</p>
-        </div>
-
-        <button
-          className="primary-button"
-          onClick={() => onNavigate("url-analysis")}
-        >
-          <Search size={18} />
-          New Investigation
-        </button>
-      </div>
-
-      <div className="stats-grid">
-        <StatCard
-          title="Total Investigations"
-          value={total}
-          description="Saved investigations"
-          icon={<Activity size={22} />}
-          color="blue"
-        />
-
-        <StatCard
-          title="High Risk"
-          value={highRisk}
-          description="Requires attention"
-          icon={<ShieldAlert size={22} />}
-          color="red"
-        />
-
-        <StatCard
-          title="Medium Risk"
-          value={mediumRisk}
-          description="Review recommended"
-          icon={<AlertTriangle size={22} />}
-          color="orange"
-        />
-
-        <StatCard
-          title="Low Risk"
-          value={lowRisk}
-          description="Fewer detected indicators"
-          icon={<ShieldCheck size={22} />}
-          color="green"
-        />
-      </div>
-
-      <div className="dashboard-grid">
-        <section className="panel dashboard-main-panel">
-          <div className="section-heading">
-            <div>
-              <h3>Recent Investigations</h3>
-              <p>Your latest saved analysis results</p>
-            </div>
-
-            <button
-              className="text-button"
-              onClick={() => onNavigate("history")}
-            >
-              View all <ArrowRight size={16} />
-            </button>
-          </div>
-
-          {loading ? (
-            <LoadingState message="Loading investigations..." />
-          ) : recentInvestigations.length === 0 ? (
-            <EmptyState
-              icon={<History size={28} />}
-              title="No investigations yet"
-              description="Start by analyzing a suspicious URL or email."
-            />
-          ) : (
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Target</th>
-                    <th>Type</th>
-                    <th>Risk</th>
-                    <th>Date</th>
-                    <th />
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {recentInvestigations.map((item) => (
-                    <tr key={item.id}>
-                      <td className="target-cell">
-                        <span>{getTarget(item)}</span>
-                      </td>
-
-                      <td>
-                        {item.analysis_type || item.type || "Analysis"}
-                      </td>
-
-                      <td>
-                        <RiskBadge level={getLevel(item)} />
-                      </td>
-
-                      <td>{formatDate(item.created_at)}</td>
-
-                      <td>
-                        <button
-                          className="icon-button"
-                          title="View investigation"
-                          onClick={() => onNavigate("details", item.id)}
-                        >
-                          <ChevronRight size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        <section className="panel quick-actions-panel">
-          <div className="section-heading">
-            <div>
-              <h3>Quick Actions</h3>
-              <p>Start a new security check</p>
-            </div>
-          </div>
-
-          <button
-            className="quick-action"
-            onClick={() => onNavigate("url-analysis")}
-          >
-            <span className="quick-action-icon blue">
-              <LinkIcon size={21} />
-            </span>
-
-            <span>
-              <strong>Analyze URL</strong>
-              <small>Check a suspicious website</small>
-            </span>
-
-            <ChevronRight size={18} />
-          </button>
-
-          <button
-            className="quick-action"
-            onClick={() => onNavigate("email-analysis")}
-          >
-            <span className="quick-action-icon purple">
-              <Mail size={21} />
-            </span>
-
-            <span>
-              <strong>Analyze Email</strong>
-              <small>Inspect suspicious email text</small>
-            </span>
-
-            <ChevronRight size={18} />
-          </button>
-
-          <button
-            className="quick-action"
-            onClick={() => onNavigate("history")}
-          >
-            <span className="quick-action-icon green">
-              <History size={21} />
-            </span>
-
-            <span>
-              <strong>Investigation History</strong>
-              <small>Review saved investigations</small>
-            </span>
-
-            <ChevronRight size={18} />
-          </button>
-        </section>
-      </div>
-
-      <section className="panel overview-panel">
-        <div className="section-heading">
-          <div>
-            <h3>Platform Capabilities</h3>
-            <p>Security checks available in PhishGuard Pro</p>
-          </div>
-        </div>
-
-        <div className="capabilities-grid">
-          <div className="capability-item">
-            <div className="capability-icon">
-              <Globe size={22} />
-            </div>
-            <h4>URL Analysis</h4>
-            <p>Inspect suspicious URL patterns and domain indicators.</p>
-          </div>
-
-          <div className="capability-item">
-            <div className="capability-icon">
-              <ShieldCheck size={22} />
-            </div>
-            <h4>Threat Intelligence</h4>
-            <p>Check URL information against the OpenPhish database.</p>
-          </div>
-
-          <div className="capability-item">
-            <div className="capability-icon">
-              <Server size={22} />
-            </div>
-            <h4>DNS Intelligence</h4>
-            <p>Review domain IP addresses, mail records, and nameservers.</p>
-          </div>
-
-          <div className="capability-item">
-            <div className="capability-icon">
-              <FileText size={22} />
-            </div>
-            <h4>Investigation Reports</h4>
-            <p>Review saved results and export available PDF reports.</p>
-          </div>
-        </div>
       </section>
     </div>
   );
 }
 
-/* -------------------- URL ANALYSIS -------------------- */
-
-function URLAnalysisPage({ onResultSaved }) {
+// URL Analysis Page
+function URLAnalysisPage() {
   const [url, setUrl] = useState("");
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
 
-  async function handleSubmit(event) {
+  async function handleAnalyze(event) {
     event.preventDefault();
 
-    const value = url.trim();
+    setError("");
+    setResult(null);
 
-    if (!value) {
+    const cleanedURL = url.trim();
+
+    if (!cleanedURL) {
       setError("Please enter a URL to analyze.");
       return;
     }
 
     setLoading(true);
-    setError("");
-    setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/analyze-url`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: value }),
+      const data = await requestAPI("/analyze-url", {
+        url: cleanedURL,
       });
 
-      const data = await response.json();
+      console.log("URL analysis response:", data);
+      console.log("DNS intelligence:", data.dns_intelligence);
+      console.log("Threat intelligence:", data.threat_intelligence);
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || data.message || "URL analysis failed."
-        );
-      }
-
-      const analysis = data.result || data.analysis || data;
-
-      setResult(analysis);
-
-      if (data.investigation_id && !analysis.id) {
-        analysis.id = data.investigation_id;
-      }
-
-      await onResultSaved();
+      setResult(data);
     } catch (err) {
-      setError(
-        err.message ||
-          "Unable to connect to the backend. Check that Flask is running."
-      );
+      setError(err.message || "The URL analysis request failed.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">WEBSITE SECURITY</span>
-          <h1>URL Analysis</h1>
-          <p>Inspect a URL for suspicious patterns and phishing indicators.</p>
-        </div>
-      </div>
+    <div className="analysis-page">
+      <div className="page-header">
+        <span className="page-eyebrow">
+          INVESTIGATION TOOL
+        </span>
 
-      <section className="panel analysis-form-panel">
-        <div className="form-intro-icon">
-          <Globe size={25} />
-        </div>
-
-        <h3>Analyze a Website</h3>
+        <h1>URL Analysis</h1>
 
         <p>
-          Enter a website address to perform heuristic, DNS, and available
-          threat-intelligence checks.
+          Investigate a URL and review its security indicators,
+          threat information, and DNS records.
         </p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="analysis-form">
-          <label htmlFor="url-input">Website URL</label>
+      <div className="analysis-layout">
+        <section className="analysis-form-panel">
+          <div className="form-panel-heading">
+            <div className="form-panel-icon">
+              <LinkIcon size={23} />
+            </div>
 
-          <div className="input-with-icon">
-            <LinkIcon size={19} />
-
-            <input
-              id="url-input"
-              type="text"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://example.com"
-              autoComplete="url"
-            />
+            <div>
+              <h2>Investigate a URL</h2>
+              <p>Enter the full URL you want to examine.</p>
+            </div>
           </div>
 
-          <p className="form-hint">
-            Enter a URL you want to inspect. Do not visit suspicious websites
-            directly.
-          </p>
+          <form onSubmit={handleAnalyze}>
+            <label htmlFor="url-input">Target URL</label>
 
-          <button
-            type="submit"
-            className="primary-button full-width"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <RefreshCw size={18} className="spinning" />
-                Analyzing URL...
-              </>
-            ) : (
-              <>
-                <Search size={18} />
-                Analyze URL
-              </>
-            )}
-          </button>
-        </form>
+            <div className="input-with-icon">
+              <LinkIcon size={19} />
 
-        {error && <ErrorMessage message={error} />}
-      </section>
-
-      {loading && <LoadingState message="Inspecting URL and domain intelligence..." />}
-
-      {result && (
-        <div className="result-section">
-          <div className="section-heading result-section-heading">
-            <div>
-              <h2>Analysis Results</h2>
-              <p>Review the findings for this investigation.</p>
+              <input
+                id="url-input"
+                type="text"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://example.com"
+                autoComplete="off"
+              />
             </div>
 
             <button
-              className="secondary-button"
-              onClick={() => {
-                setResult(null);
-                setUrl("");
-                setError("");
-              }}
+              type="submit"
+              className="primary-button analyze-button"
+              disabled={loading}
             >
-              <RefreshCw size={16} />
-              New Analysis
+              {loading ? (
+                <>
+                  <LoaderCircle size={18} className="spin-icon" />
+                  Analyzing URL...
+                </>
+              ) : (
+                <>
+                  <Search size={18} />
+                  Analyze URL
+                </>
+              )}
             </button>
-          </div>
+          </form>
 
-          <AnalysisResult result={result} />
+          {error && (
+            <div className="error-message">
+              <XCircle size={19} />
+              <p>{error}</p>
+            </div>
+          )}
+
+          <p className="form-safety-note">
+            Only analyze URLs you are authorized to investigate.
+            A security analysis does not guarantee a website is safe.
+          </p>
+        </section>
+
+        <div>
+          {result ? (
+            <AnalysisResult result={result} type="url" />
+          ) : (
+            <section className="result-panel empty-result">
+              <Search size={28} />
+
+              <h3>Analysis Results</h3>
+
+              <p>
+                Enter a URL and start an investigation to view its
+                risk assessment, findings, DNS information, and
+                available threat intelligence.
+              </p>
+            </section>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-/* -------------------- EMAIL ANALYSIS -------------------- */
-
-function EmailAnalysisPage({ onResultSaved }) {
-  const [emailText, setEmailText] = useState("");
+// Email Analysis Page
+function EmailAnalysisPage() {
+  const [email, setEmail] = useState("");
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
 
-  async function handleSubmit(event) {
+  async function handleAnalyze(event) {
     event.preventDefault();
 
-    const value = emailText.trim();
+    setError("");
+    setResult(null);
 
-    if (!value) {
-      setError("Please paste email content to analyze.");
+    const cleanedEmail = email.trim();
+
+    if (!cleanedEmail) {
+      setError("Please enter email content to analyze.");
       return;
     }
 
     setLoading(true);
-    setError("");
-    setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/analyze-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email_text: value,
-        }),
+      const data = await requestAPI("/analyze-email", {
+        email_text: cleanedEmail,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || data.message || "Email analysis failed."
-        );
-      }
-
-      const analysis = data.result || data.analysis || data;
-
-      setResult(analysis);
-
-      if (data.investigation_id && !analysis.id) {
-        analysis.id = data.investigation_id;
-      }
-
-      await onResultSaved();
+      setResult(data);
     } catch (err) {
-      setError(
-        err.message ||
-          "Unable to connect to the backend. Check that Flask is running."
-      );
+      setError(err.message || "The email analysis request failed.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">EMAIL SECURITY</span>
-          <h1>Email Analysis</h1>
-          <p>Inspect suspicious email content for potential phishing indicators.</p>
-        </div>
-      </div>
+    <div className="analysis-page">
+      <div className="page-header">
+        <span className="page-eyebrow">
+          INVESTIGATION TOOL
+        </span>
 
-      <section className="panel analysis-form-panel">
-        <div className="form-intro-icon purple">
-          <Mail size={25} />
-        </div>
-
-        <h3>Analyze an Email</h3>
+        <h1>Email Analysis</h1>
 
         <p>
-          Paste the email text, including its sender information, subject, and
-          message body when available.
+          Examine email content for suspicious language, phishing
+          indicators, and potential social engineering attempts.
         </p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="analysis-form">
-          <label htmlFor="email-input">Email Content</label>
-
-          <textarea
-            id="email-input"
-            value={emailText}
-            onChange={(event) => setEmailText(event.target.value)}
-            placeholder={`From: security@example.com
-Subject: Verify your account
-
-Paste the email message here...`}
-            rows={10}
-          />
-
-          <p className="form-hint">
-            Avoid pasting real passwords, OTPs, private information, or other
-            sensitive data.
-          </p>
-
-          <button
-            type="submit"
-            className="primary-button full-width"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <RefreshCw size={18} className="spinning" />
-                Analyzing Email...
-              </>
-            ) : (
-              <>
-                <Search size={18} />
-                Analyze Email
-              </>
-            )}
-          </button>
-        </form>
-
-        {error && <ErrorMessage message={error} />}
-      </section>
-
-      {loading && <LoadingState message="Inspecting email content..." />}
-
-      {result && (
-        <div className="result-section">
-          <div className="section-heading result-section-heading">
-            <div>
-              <h2>Analysis Results</h2>
-              <p>Review the findings for this email.</p>
+      <div className="analysis-layout">
+        <section className="analysis-form-panel">
+          <div className="form-panel-heading">
+            <div className="form-panel-icon">
+              <Mail size={23} />
             </div>
 
-            <button
-              className="secondary-button"
-              onClick={() => {
-                setResult(null);
-                setEmailText("");
-                setError("");
-              }}
-            >
-              <RefreshCw size={16} />
-              New Analysis
-            </button>
+            <div>
+              <h2>Investigate an Email</h2>
+              <p>Paste the suspicious email text below.</p>
+            </div>
           </div>
 
-          <AnalysisResult
-            result={{
-              ...result,
-              analysis_type: "email",
-              target:
-                result.target ||
-                result.subject ||
-                "Email content analysis",
-            }}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
+          <form onSubmit={handleAnalyze}>
+            <label htmlFor="email-input">Email Content</label>
 
-/* -------------------- INVESTIGATION HISTORY -------------------- */
-
-function InvestigationHistoryPage({
-  history,
-  loading,
-  onRefresh,
-  onNavigate,
-}) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [riskFilter, setRiskFilter] = useState("all");
-
-  const filteredHistory = history.filter((item) => {
-    const target = getTarget(item).toLowerCase();
-    const search = searchTerm.toLowerCase();
-
-    const matchesSearch = target.includes(search);
-
-    const level = String(getLevel(item)).toLowerCase();
-
-    const matchesRisk =
-      riskFilter === "all" ||
-      (riskFilter === "high" &&
-        (level === "high" || level === "critical")) ||
-      (riskFilter === "medium" &&
-        (level === "medium" || level === "moderate")) ||
-      (riskFilter === "low" && level === "low");
-
-    return matchesSearch && matchesRisk;
-  });
-
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">INVESTIGATION RECORDS</span>
-          <h1>Investigation History</h1>
-          <p>Search and review your previously saved investigations.</p>
-        </div>
-
-        <button
-          className="secondary-button"
-          onClick={onRefresh}
-          disabled={loading}
-        >
-          <RefreshCw size={17} className={loading ? "spinning" : ""} />
-          Refresh
-        </button>
-      </div>
-
-      <section className="panel history-panel">
-        <div className="history-toolbar">
-          <div className="search-field">
-            <Search size={18} />
-
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search targets..."
+            <textarea
+              id="email-input"
+              className="email-textarea"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Paste the suspicious email message here..."
+              rows={8}
             />
-          </div>
 
-          <select
-            value={riskFilter}
-            onChange={(event) => setRiskFilter(event.target.value)}
-            aria-label="Filter by risk level"
-          >
-            <option value="all">All Risk Levels</option>
-            <option value="high">High Risk</option>
-            <option value="medium">Medium Risk</option>
-            <option value="low">Low Risk</option>
-          </select>
-        </div>
+            <button
+              type="submit"
+              className="primary-button analyze-button"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <LoaderCircle size={18} className="spin-icon" />
+                  Analyzing Email...
+                </>
+              ) : (
+                <>
+                  <Search size={18} />
+                  Analyze Email
+                </>
+              )}
+            </button>
+          </form>
 
-        {loading ? (
-          <LoadingState message="Loading investigation history..." />
-        ) : filteredHistory.length === 0 ? (
-          <EmptyState
-            icon={<History size={28} />}
-            title="No matching investigations"
-            description="Try another search or run a new analysis."
-          />
-        ) : (
-          <div className="table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Target</th>
-                  <th>Analysis Type</th>
-                  <th>Risk Score</th>
-                  <th>Risk Level</th>
-                  <th>Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
+          {error && (
+            <div className="error-message">
+              <XCircle size={19} />
+              <p>{error}</p>
+            </div>
+          )}
 
-              <tbody>
-                {filteredHistory.map((item) => (
-                  <tr key={item.id}>
-                    <td>#{item.id}</td>
-
-                    <td className="target-cell">
-                      <span>{getTarget(item)}</span>
-                    </td>
-
-                    <td>{item.analysis_type || item.type || "Analysis"}</td>
-
-                    <td>{getScore(item)}/100</td>
-
-                    <td>
-                      <RiskBadge level={getLevel(item)} />
-                    </td>
-
-                    <td>{formatDate(item.created_at)}</td>
-
-                    <td>
-                      <button
-                        className="secondary-button small-button"
-                        onClick={() => onNavigate("details", item.id)}
-                      >
-                        View <ChevronRight size={15} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div className="table-footer">
-          Showing {filteredHistory.length} of {history.length} investigations
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* -------------------- REPORTS -------------------- */
-
-function ReportsPage({ history, onNavigate }) {
-  const [downloadingId, setDownloadingId] = useState(null);
-  const [error, setError] = useState("");
-
-  async function downloadReport(item) {
-    setDownloadingId(item.id);
-    setError("");
-
-    try {
-      const response = await fetch(
-        `${API_URL}/reports/${item.id}/pdf`
-      );
-
-      if (!response.ok) {
-        let message = "Unable to download the PDF report.";
-
-        try {
-          const data = await response.json();
-          message = data.error || data.message || message;
-        } catch {
-          // The response may not contain JSON.
-        }
-
-        throw new Error(message);
-      }
-
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = `phishguard-report-${item.id}.pdf`;
-
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-
-      window.URL.revokeObjectURL(objectUrl);
-    } catch (err) {
-      setError(err.message || "Report download failed.");
-    } finally {
-      setDownloadingId(null);
-    }
-  }
-
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">DOCUMENTATION</span>
-          <h1>Security Reports</h1>
-          <p>Download PDF reports for saved investigations.</p>
-        </div>
-      </div>
-
-      {error && <ErrorMessage message={error} />}
-
-      <section className="panel reports-panel">
-        <div className="section-heading">
-          <div>
-            <h3>Available Reports</h3>
-            <p>Reports are generated from saved investigation records.</p>
-          </div>
-
-          <span className="findings-count">{history.length} records</span>
-        </div>
-
-        {history.length === 0 ? (
-          <EmptyState
-            icon={<FileText size={28} />}
-            title="No reports available"
-            description="Run an analysis first to create an investigation report."
-          />
-        ) : (
-          <div className="reports-list">
-            {history.map((item) => (
-              <div className="report-item" key={item.id}>
-                <div className="report-file-icon">
-                  <FileText size={23} />
-                </div>
-
-                <div className="report-info">
-                  <h4>Investigation Report #{item.id}</h4>
-                  <p>{getTarget(item)}</p>
-
-                  <div className="report-meta">
-                    <span>{formatDate(item.created_at)}</span>
-                    <RiskBadge level={getLevel(item)} />
-                  </div>
-                </div>
-
-                <div className="report-actions">
-                  <button
-                    className="icon-button"
-                    title="View investigation"
-                    onClick={() => onNavigate("details", item.id)}
-                  >
-                    <Eye size={18} />
-                  </button>
-
-                  <button
-                    className="primary-button small-button"
-                    disabled={downloadingId === item.id}
-                    onClick={() => downloadReport(item)}
-                  >
-                    {downloadingId === item.id ? (
-                      <RefreshCw size={16} className="spinning" />
-                    ) : (
-                      <Download size={16} />
-                    )}
-
-                    {downloadingId === item.id ? "Preparing..." : "Download PDF"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-/* -------------------- INVESTIGATION DETAILS -------------------- */
-
-function InvestigationDetailsPage({
-  investigationId,
-  onBack,
-}) {
-  const [investigation, setInvestigation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadInvestigation() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await fetch(
-          `${API_URL}/history/${investigationId}`
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data.error ||
-              data.message ||
-              "Unable to load investigation details."
-          );
-        }
-
-        const record =
-          data.investigation ||
-          data.result ||
-          data;
-
-        if (!cancelled) {
-          setInvestigation(record);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err.message ||
-              "Unable to connect to the backend."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    if (investigationId !== undefined && investigationId !== null) {
-      loadInvestigation();
-    } else {
-      setError("No investigation ID was provided.");
-      setLoading(false);
-    }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [investigationId]);
-
-  if (loading) {
-    return (
-      <div className="page-content">
-        <LoadingState message="Loading investigation details..." />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page-content">
-        <button className="secondary-button" onClick={onBack}>
-          <ArrowLeft size={17} />
-          Back
-        </button>
-
-        <ErrorMessage message={error} />
-      </div>
-    );
-  }
-
-  if (!investigation) {
-    return (
-      <div className="page-content">
-        <EmptyState
-          icon={<Database size={28} />}
-          title="Investigation not found"
-          description="This investigation may no longer be available."
-        />
-
-        <button className="secondary-button" onClick={onBack}>
-          <ArrowLeft size={17} />
-          Back
-        </button>
-      </div>
-    );
-  }
-
-  const data = getResultData(investigation);
-
-  const mergedResult = {
-    ...data,
-    ...investigation,
-    ...(
-      investigation.result_json
-        ? data
-        : {}
-    ),
-    id: investigation.id,
-    target: investigation.target || getTarget(data),
-    risk_score:
-      investigation.risk_score ?? data.risk_score,
-    risk_level:
-      investigation.risk_level ?? data.risk_level,
-    analysis_type:
-      investigation.analysis_type || data.analysis_type,
-  };
-
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">SAVED RECORD</span>
-          <h1>Investigation Details</h1>
-          <p>
-            Investigation #{investigation.id} ·{" "}
-            {formatDate(investigation.created_at)}
+          <p className="form-safety-note">
+            Remove passwords, private information, and other sensitive
+            data before submitting email content.
           </p>
+        </section>
+
+        <div>
+          {result ? (
+            <AnalysisResult result={result} type="email" />
+          ) : (
+            <section className="result-panel empty-result">
+              <Mail size={28} />
+
+              <h3>Analysis Results</h3>
+
+              <p>
+                Submit email content to view the risk assessment and
+                phishing indicators returned by the analyzer.
+              </p>
+            </section>
+          )}
         </div>
-
-        <button className="secondary-button" onClick={onBack}>
-          <ArrowLeft size={17} />
-          Back to History
-        </button>
       </div>
-
-      <AnalysisResult result={mergedResult} />
     </div>
   );
 }
 
-/* -------------------- APPLICATION -------------------- */
-
+// Main Application
 function App() {
   const [activePage, setActivePage] = useState("dashboard");
-  const [selectedInvestigationId, setSelectedInvestigationId] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [historyError, setHistoryError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [backendOnline, setBackendOnline] = useState(false);
 
-  async function loadHistory() {
-    setHistoryLoading(true);
-    setHistoryError("");
-
-    try {
-      const response = await fetch(`${API_URL}/history`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error ||
-            data.message ||
-            "Unable to load investigation history."
-        );
-      }
-
-      const records = Array.isArray(data)
-        ? data
-        : data.history ||
-          data.investigations ||
-          data.results ||
-          [];
-
-      setHistory(records);
-    } catch (err) {
-      setHistoryError(
-        err.message ||
-          "Unable to connect to the Flask backend."
-      );
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
-
-  async function checkBackend() {
-    try {
-      const response = await fetch(`${API_URL.replace("/api", "")}/api/health`);
-      setBackendOnline(response.ok);
-    } catch {
-      setBackendOnline(false);
-    }
-  }
-
-  useEffect(() => {
-    loadHistory();
-    checkBackend();
-  }, []);
-
-  function navigateTo(page, investigationId = null) {
-    setActivePage(page);
-    setSidebarOpen(false);
-
-    if (page === "details") {
-      setSelectedInvestigationId(investigationId);
-    } else {
-      setSelectedInvestigationId(null);
-    }
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  }
-
-  const navItems = [
+  const navigation = [
     {
       id: "dashboard",
       label: "Dashboard",
-      icon: <LayoutDashboard size={19} />,
+      icon: LayoutDashboard,
     },
     {
-      id: "url-analysis",
+      id: "url",
       label: "URL Analysis",
-      icon: <LinkIcon size={19} />,
+      icon: LinkIcon,
     },
     {
-      id: "email-analysis",
+      id: "email",
       label: "Email Analysis",
-      icon: <Mail size={19} />,
+      icon: Mail,
     },
     {
-      id: "history",
-      label: "Investigation History",
-      icon: <History size={19} />,
-    },
-    {
-  id: "password-checker",
-  label: "Password Checker",
-  icon: <KeyRound size={19} />,
-    },
-    {
-      id: "reports",
-      label: "Reports",
-      icon: <FileText size={19} />,
+      id: "password",
+      label: "Password Checker",
+      icon: LockKeyhole,
     },
   ];
 
-  function getPageTitle() {
-    const item = navItems.find((nav) => nav.id === activePage);
-
-    if (item) return item.label;
-
-    if (activePage === "details") return "Investigation Details";
-
-    return "Dashboard";
+  function changePage(page) {
+    setActivePage(page);
+    setSidebarOpen(false);
   }
 
   function renderPage() {
     switch (activePage) {
-      case "url-analysis":
-        return (
-          <URLAnalysisPage onResultSaved={loadHistory} />
-        );
+      case "url":
+        return <URLAnalysisPage />;
 
-      case "email-analysis":
-        return (
-          <EmailAnalysisPage onResultSaved={loadHistory} />
-        );
+      case "email":
+        return <EmailAnalysisPage />;
 
-      case "history":
-        return (
-          <InvestigationHistoryPage
-            history={history}
-            loading={historyLoading}
-            onRefresh={loadHistory}
-            onNavigate={navigateTo}
-          />
-        );
-        case "password-checker":
-  return <PasswordChecker />;
-
-      case "reports":
-        return (
-          <ReportsPage
-            history={history}
-            onNavigate={navigateTo}
-          />
-        );
-
-      case "details":
-        return (
-          <InvestigationDetailsPage
-            investigationId={selectedInvestigationId}
-            onBack={() => navigateTo("history")}
-          />
-        );
+      case "password":
+        return <PasswordChecker />;
 
       case "dashboard":
       default:
-        return (
-          <DashboardPage
-            history={history}
-            onNavigate={navigateTo}
-            loading={historyLoading}
-          />
-        );
+        return <DashboardPage setPage={changePage} />;
     }
   }
 
+  const currentPage =
+    navigation.find((item) => item.id === activePage)?.label ||
+    "Dashboard";
+
   return (
-    <div className="app-shell">
+    <div className="app-container">
       {sidebarOpen && (
         <button
-          className="mobile-overlay"
+          className="sidebar-overlay"
           aria-label="Close navigation"
           onClick={() => setSidebarOpen(false)}
         />
@@ -1787,7 +1077,7 @@ function App() {
 
       <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="sidebar-brand">
-          <div className="brand-logo">
+          <div className="brand-icon">
             <ShieldCheck size={27} />
           </div>
 
@@ -1797,79 +1087,74 @@ function App() {
           </div>
 
           <button
-            className="sidebar-close icon-button"
-            aria-label="Close menu"
+            className="sidebar-close"
+            aria-label="Close navigation"
             onClick={() => setSidebarOpen(false)}
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="sidebar-section-label">WORKSPACE</div>
-
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${
-                activePage === item.id ? "nav-item-active" : ""
-              }`}
-              onClick={() => navigateTo(item.id)}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-
-              {activePage === item.id && (
-                <span className="nav-active-indicator" />
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-spacer" />
-
-        <div className="sidebar-security-card">
-          <div className="sidebar-security-icon">
-            <LockKeyhole size={20} />
-          </div>
-
-          <h4>Security Workspace</h4>
-
-          <p>
-            Investigate suspicious URLs and email content from one place.
-          </p>
-
-          <button onClick={() => navigateTo("url-analysis")}>
-            Start analysis <ArrowRight size={15} />
-          </button>
+        <div className="sidebar-section-label">
+          WORKSPACE
         </div>
 
-        <div className="sidebar-footer">
-          <div
-            className={`connection-dot ${
-              backendOnline ? "connection-online" : "connection-offline"
-            }`}
-          />
+        <nav className="sidebar-nav">
+          {navigation.map((item) => {
+            const Icon = item.icon;
 
-          <span>
-            Backend {backendOnline ? "Connected" : "Disconnected"}
-          </span>
+            return (
+              <button
+                key={item.id}
+                className={`nav-item ${
+                  activePage === item.id ? "active" : ""
+                }`}
+                onClick={() => changePage(item.id)}
+              >
+                <Icon size={19} />
 
-          <button
-            className="icon-button connection-refresh"
-            title="Check backend connection"
-            onClick={checkBackend}
-          >
-            <RefreshCw size={15} />
-          </button>
+                <span>{item.label}</span>
+
+                {activePage === item.id && (
+                  <span className="nav-active-indicator" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="sidebar-security-card">
+            <div className="sidebar-security-icon">
+              <ShieldCheck size={20} />
+            </div>
+
+            <div>
+              <strong>Security First</strong>
+              <p>
+                Investigate suspicious activity responsibly.
+              </p>
+            </div>
+          </div>
+
+          <div className="sidebar-footer">
+            <div className="footer-status-icon">
+              <Activity size={18} />
+            </div>
+
+            <div>
+              <p>Backend status</p>
+              <span>Security Workspace</span>
+            </div>
+          </div>
         </div>
       </aside>
 
-      <div className="main-layout">
+      <main className="main-area">
         <header className="topbar">
           <div className="topbar-left">
             <button
-              className="mobile-menu-button icon-button"
+              className="menu-button"
               aria-label="Open navigation"
               onClick={() => setSidebarOpen(true)}
             >
@@ -1878,74 +1163,37 @@ function App() {
 
             <div className="breadcrumb">
               <span>PhishGuard Pro</span>
-              <ChevronRight size={15} />
-              <strong>{getPageTitle()}</strong>
+
+              <span className="breadcrumb-divider">/</span>
+
+              <strong>{currentPage}</strong>
             </div>
           </div>
 
           <div className="topbar-right">
-            <div className="topbar-status">
-              <span
-                className={`connection-dot ${
-                  backendOnline
-                    ? "connection-online"
-                    : "connection-offline"
-                }`}
-              />
+            <span className="topbar-status-dot" />
 
-              {backendOnline ? "System Online" : "System Offline"}
-            </div>
+            <span className="topbar-status-text">
+              Security Workspace
+            </span>
 
             <div className="topbar-avatar">
-              <ShieldCheck size={19} />
+              <ShieldCheck size={18} />
             </div>
           </div>
         </header>
 
-        <main className="main-content">
-          {historyError && activePage === "dashboard" && (
-            <div className="global-error">
-              <AlertTriangle size={18} />
-
-              <span>{historyError}</span>
-
-              <button
-                className="text-button"
-                onClick={() => {
-                  loadHistory();
-                  checkBackend();
-                }}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
+        <div className="main-content">
           {renderPage()}
-        </main>
+        </div>
 
         <footer className="app-footer">
-          <div className="footer-brand">
-            <ShieldCheck size={17} />
-            <span>PhishGuard Pro</span>
-              </div>
+          <span>PhishGuard Pro</span>
 
-          <p>
-
-            
-
-          </p>
-
-          <span className="footer-version"></span>
-
+          <span>Cybersecurity Investigation Toolkit</span>
         </footer>
-
-      </div>
-
+      </main>
     </div>
-                  
-          
-    
   );
 }
 
