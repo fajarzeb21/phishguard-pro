@@ -2379,8 +2379,10 @@ button:disabled {
   }
 }
 
+
 /* ========================================
-   THREAT INTELLIGENCE - CONSISTENT DESIGN
+   THREAT INTELLIGENCE
+   Consistent sizing with DNS Report
 ======================================== */
 
 .threat-intelligence,
@@ -2392,57 +2394,143 @@ button:disabled {
   border: 1px solid #263b2d;
   border-radius: 13px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-.threat-intelligence h2,
-.threat-intelligence-results h2 {
-  margin: 0 0 8px;
+/* Main headings */
+.threat-intelligence > h2,
+.threat-intelligence-results > h2 {
+  margin: 0 0 7px;
   color: #e2eee5;
   font-size: 18px;
+  font-weight: 600;
   line-height: 1.5;
 }
 
-.threat-intelligence p,
-.threat-intelligence-results p {
+/* Descriptions */
+.threat-intelligence > p,
+.threat-intelligence-results > p {
+  margin: 0 0 12px;
   color: #8da196;
   font-size: 11px;
   line-height: 1.7;
   overflow-wrap: anywhere;
 }
 
+/* Cards grid */
 .threat-intelligence-grid,
 .threat-intelligence-results-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 11px;
   width: 100%;
-  margin-top: 16px;
+  margin-top: 14px;
 }
 
+/* Individual cards */
 .threat-intelligence-item {
   min-width: 0;
-  min-height: 90px;
+  min-height: 0;
   padding: 14px;
   background: #101b14;
   border: 1px solid #263a2c;
   border-radius: 10px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
+/* Card headings */
+.threat-intelligence-item .dns-record-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+
+.threat-intelligence-item .dns-record-card-heading h3 {
+  min-width: 0;
+  margin: 4px 0 0;
+  color: #d8e7dc;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* TI label */
+.threat-intelligence-item .dns-record-type {
+  min-width: 35px;
+  height: 25px;
+  flex-shrink: 0;
+  font-size: 9px;
+}
+
+/* Labels and normal text */
 .threat-intelligence-item span {
-  display: block;
-  margin-bottom: 9px;
   color: #8da196;
   font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
+.threat-intelligence-item p,
+.threat-intelligence-item li {
+  margin: 0;
+  color: #b0c5b7;
+  font-size: 10px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Values such as Available, Yes, and OpenPhish */
 .threat-intelligence-item strong {
-  display: block;
   color: #dce9e0;
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1.6;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* Lists */
+.threat-intelligence-item .dns-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.threat-intelligence-item .dns-record-list li {
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+/* Technical values and URLs */
+.threat-intelligence-item code {
+  color: #b4d9c0;
+  font-family: Consolas, monospace;
+  font-size: 10px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Keep nested text from adding unwanted spacing */
+.threat-intelligence-item p:last-child {
+  margin-bottom: 0;
+}
+
+/* Tablet and mobile */
+@media (max-width: 900px) {
+  .threat-intelligence,
+  .threat-intelligence-results {
+    padding: 17px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -2454,7 +2542,11 @@ button:disabled {
   .threat-intelligence-grid,
   .threat-intelligence-results-grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .threat-intelligence-item {
+    padding: 12px;
   }
 }
-
 
