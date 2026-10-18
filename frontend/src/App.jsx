@@ -526,10 +526,16 @@ function EmailReputationReport({ data }) {
         <span>Email Domain</span>
         <strong>{data.domain || "Unknown"}</strong>
       </div>
+      
+<div className="dns-hostname">
+  <span>Detection Source</span>
+  <strong>
+    {data.detection_source === "safe_domain"
+      ? "Safe Domain Check"
+      : data.detection_source || "Not available"}
+  </strong>
 
-      <div className="dns-hostname">
-        <span>Detection Source</span>
-        <strong>{data.detection_source || "Not available"}</strong>
+
       </div>
 
       <div className="dns-hostname">
