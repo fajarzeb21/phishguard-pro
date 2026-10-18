@@ -4,7 +4,9 @@ from flask_cors import CORS
 
 import os
 
-import json
+import  json 
+
+import requests  
 
 from pathlib import Path
 
@@ -97,6 +99,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 # In production, configure DATABASE_URL through the host.
 
 load_dotenv(ROOT_DIR / ".env.local")
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -378,6 +381,59 @@ def analyze_email_route():
 # -----------------------------
 # EMAIL ADDRESS ANALYSIS
 # -----------------------------
+def analyze_email_address(email):
+    api_key = os.getenv("EMAIL_VERIFICATION_API_KEY")
+
+    if not api_key:
+        raise RuntimeError("Email verification API key is not configured.")
+
+    try:
+        response = requests.get(
+            "https://verifications.email/api/v1/verify",
+            params={"email": email.strip()},
+            headers={
+                "X-API-Key": api_key
+            },
+            timeout=20
+        )
+
+        if response.status_code == 401:
+            return {
+                "success": False,
+                "error": "API authentication failed. Check your API key."
+            }
+
+        if response.status_code == 429:
+            return {
+                "success": False,
+                "error": "API limit reached. Please try again later."
+            }
+
+        response.raise_for_status()
+
+        result = response.json().get("data")
+
+        if not isinstance(result, dict):
+            return {
+                "success": False,
+                "error": "The verification API returned an unexpected response."
+            }
+
+        return {
+            "success": True,
+            **result
+        }
+
+    except requests.RequestException:
+        app.logger.exception("Email verification API request failed")
+
+        return {
+            "success": False,
+            "error": "Could not connect to the email verification service."
+        }
+
+
+
 
 @app.route("/api/analyze-email-address", methods=["POST"])
 def analyze_email_address_route():
