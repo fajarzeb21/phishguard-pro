@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 import {
@@ -272,6 +271,7 @@ function DNSReport({ dnsData }) {
 
                 <div>
                   <strong>{finding.name || "DNS Finding"}</strong>
+
                   <p>
                     {finding.evidence ||
                       finding.message ||
@@ -288,9 +288,9 @@ function DNSReport({ dnsData }) {
       )}
 
       <p className="dns-report-note">
-        DNS records provide technical information about a domain.
-        Missing records do not automatically mean that a website is
-        malicious, and DNS records alone cannot establish trustworthiness.
+        DNS records provide technical information about a domain. Missing
+        records do not automatically mean that a website is malicious, and
+        DNS records alone cannot establish trustworthiness.
       </p>
     </section>
   );
@@ -356,12 +356,14 @@ function ThreatIntelligence({ data }) {
               value !== null &&
               !Array.isArray(value) ? (
                 <ul className="dns-record-list">
-                  {Object.entries(value).map(([nestedKey, nestedValue]) => (
-                    <li key={nestedKey}>
-                      <strong>{formatLabel(nestedKey)}:</strong>{" "}
-                      <code>{formatValue(nestedValue)}</code>
-                    </li>
-                  ))}
+                  {Object.entries(value).map(
+                    ([nestedKey, nestedValue]) => (
+                      <li key={nestedKey}>
+                        <strong>{formatLabel(nestedKey)}:</strong>{" "}
+                        <code>{formatValue(nestedValue)}</code>
+                      </li>
+                    )
+                  )}
                 </ul>
               ) : (
                 <p>{formatValue(value)}</p>
@@ -374,8 +376,174 @@ function ThreatIntelligence({ data }) {
       )}
 
       <p className="dns-report-note">
-        No match in a threat intelligence database does not guarantee
-        that a URL is safe.
+        No match in a threat intelligence database does not guarantee that
+        a URL is safe.
+      </p>
+    </section>
+  );
+}
+
+// Email Reputation Report Component
+function EmailReputationReport({ data }) {
+  if (!data) {
+    return (
+      <section className="dns-report">
+        <div className="dns-report-header">
+          <div>
+            <span className="page-eyebrow">EMAIL INTELLIGENCE</span>
+            <h2>Email Reputation Report</h2>
+            <p>
+              Reputation information was not returned by the backend.
+            </p>
+          </div>
+
+          <div className="dns-report-icon">
+            <ShieldAlert size={24} />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const checks = [
+    {
+      key: "valid_format",
+      title: "Email Format Validity",
+      positiveWhenTrue: true,
+      description: "Whether the service considers the email format valid.",
+    },
+    {
+      key: "is_disposable",
+      title: "Disposable Email Detection",
+      positiveWhenTrue: false,
+      description: "Whether the address uses a disposable email provider.",
+    },
+    {
+      key: "is_known_spammer",
+      title: "Known Spammer Status",
+      positiveWhenTrue: false,
+      description: "Whether the service flags the address as a known spammer.",
+    },
+    {
+      key: "community_blacklisted",
+      title: "Community Blacklist Status",
+      positiveWhenTrue: false,
+      description: "Whether the service reports a community blacklist match.",
+    },
+    {
+      key: "safe_domain",
+      title: "Domain Safety",
+      positiveWhenTrue: true,
+      description: "The domain safety indicator returned by the service.",
+    },
+    {
+      key: "is_role_address",
+      title: "Role-Based Address",
+      positiveWhenTrue: false,
+      description: "Whether the address may represent a shared mailbox.",
+    },
+  ];
+
+  function getStatus(value, positiveWhenTrue) {
+    if (value === null || value === undefined || value === "") {
+      return {
+        label: "Unknown",
+        className: "unknown",
+      };
+    }
+
+    if (typeof value === "boolean") {
+      const positive = value === positiveWhenTrue;
+
+      return {
+        label: value
+          ? positiveWhenTrue
+            ? "Valid / Yes"
+            : "Detected"
+          : positiveWhenTrue
+            ? "Invalid / No"
+            : "Not Detected",
+        className: positive ? "low" : "high",
+      };
+    }
+
+    // Preserve strings returned by the reputation provider.
+    // Do not guess whether an unfamiliar value means safe or unsafe.
+    return {
+      label: String(value),
+      className: "unknown",
+    };
+  }
+
+  const reportCount = data.blacklist_reports;
+  const hasReportCount =
+    reportCount !== null &&
+    reportCount !== undefined &&
+    reportCount !== "";
+
+  return (
+    <section className="dns-report email-reputation-report">
+      <div className="dns-report-header">
+        <div>
+          <span className="page-eyebrow">EMAIL INTELLIGENCE</span>
+          <h2>Email Reputation Report</h2>
+          <p>
+            Reputation indicators returned by{" "}
+            {data.provider || "the external reputation service"}.
+          </p>
+        </div>
+
+        <div className="dns-report-icon">
+          <ShieldCheck size={24} />
+        </div>
+      </div>
+
+      <div className="dns-record-grid">
+        {checks.map((check) => {
+          const status = getStatus(
+            data[check.key],
+            check.positiveWhenTrue
+          );
+
+          return (
+            <div className="dns-record-card" key={check.key}>
+              <div className="dns-record-card-heading">
+                <span className="dns-record-type">EMAIL</span>
+                <h3>{check.title}</h3>
+              </div>
+
+              <span className={`status-badge status-${status.className}`}>
+                {status.label}
+              </span>
+
+              <p>{check.description}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="dns-hostname">
+        <span>Email Domain</span>
+        <strong>{data.domain || "Unknown"}</strong>
+      </div>
+
+      <div className="dns-hostname">
+        <span>Detection Source</span>
+        <strong>{data.detection_source || "Not available"}</strong>
+      </div>
+
+      <div className="dns-hostname">
+        <span>Blacklist Reports</span>
+        <strong>
+          {hasReportCount ? String(reportCount) : "Not available"}
+        </strong>
+      </div>
+
+      <p className="dns-report-note">
+        These results depend on the information returned by the reputation
+        service. Unknown results do not mean safe. A clean reputation result
+        cannot guarantee trustworthiness, and a blacklist match alone does
+        not prove malicious activity.
       </p>
     </section>
   );
@@ -577,6 +745,10 @@ function AnalysisResult({ result, type }) {
 
       {type === "email-address" && (
         <>
+          <EmailReputationReport
+            data={result.reputation_intelligence}
+          />
+
           {dnsData && <DNSReport dnsData={dnsData} />}
 
           {threatData && <ThreatIntelligence data={threatData} />}
@@ -751,9 +923,10 @@ function URLAnalysisPage() {
       <div className="page-header">
         <span className="page-eyebrow">INVESTIGATION TOOL</span>
         <h1>URL Analysis</h1>
+
         <p>
-          Investigate a URL and review its security indicators,
-          threat information, and DNS records.
+          Investigate a URL and review its security indicators, threat
+          information, and DNS records.
         </p>
       </div>
 
@@ -813,8 +986,8 @@ function URLAnalysisPage() {
           )}
 
           <p className="form-safety-note">
-            Only analyze URLs you are authorized to investigate.
-            A security analysis does not guarantee a website is safe.
+            Only analyze URLs you are authorized to investigate. A security
+            analysis does not guarantee a website is safe.
           </p>
         </section>
 
@@ -825,10 +998,11 @@ function URLAnalysisPage() {
             <section className="result-panel empty-result">
               <Search size={28} />
               <h3>Analysis Results</h3>
+
               <p>
-                Enter a URL and start an investigation to view its
-                risk assessment, findings, DNS information, and
-                available threat intelligence.
+                Enter a URL and start an investigation to view its risk
+                assessment, findings, DNS information, and available threat
+                intelligence.
               </p>
             </section>
           )}
@@ -873,6 +1047,9 @@ function EmailAnalysisPage() {
       const data = await requestAPI("/analyze-email-address", {
         email: cleanedAddress,
       });
+
+      console.log("Email address analysis response:", data);
+      console.log("Email reputation intelligence:", data.reputation_intelligence);
 
       setAddressResult(data);
     } catch (err) {
@@ -919,9 +1096,10 @@ function EmailAnalysisPage() {
       <div className="page-header">
         <span className="page-eyebrow">INVESTIGATION TOOL</span>
         <h1>Email Analysis</h1>
+
         <p>
-          Investigate suspicious email addresses and examine
-          email messages for phishing indicators.
+          Investigate suspicious email addresses and examine email messages
+          for phishing indicators.
         </p>
       </div>
 
@@ -976,9 +1154,7 @@ function EmailAnalysisPage() {
             </div>
 
             <form onSubmit={handleAddressAnalyze}>
-              <label htmlFor="email-address-input">
-                Email Address
-              </label>
+              <label htmlFor="email-address-input">Email Address</label>
 
               <div className="input-with-icon">
                 <Mail size={19} />
@@ -1023,9 +1199,9 @@ function EmailAnalysisPage() {
             )}
 
             <p className="form-safety-note">
-              Address analysis can inspect domain configuration
-              and available reputation indicators. It cannot
-              independently confirm mailbox ownership.
+              Address analysis can inspect domain configuration and
+              available reputation indicators. It cannot independently
+              confirm mailbox ownership.
             </p>
           </section>
 
@@ -1039,10 +1215,10 @@ function EmailAnalysisPage() {
               <section className="result-panel empty-result">
                 <Mail size={28} />
                 <h3>Address Analysis Results</h3>
+
                 <p>
-                  Enter an email address to investigate its
-                  domain configuration and available security
-                  indicators.
+                  Enter an email address to investigate its domain
+                  configuration and available security indicators.
                 </p>
               </section>
             )}
@@ -1112,8 +1288,8 @@ function EmailAnalysisPage() {
             )}
 
             <p className="form-safety-note">
-              Remove passwords, private information, and other
-              sensitive data before submitting email content.
+              Remove passwords, private information, and other sensitive
+              data before submitting email content.
             </p>
           </section>
 
@@ -1127,9 +1303,10 @@ function EmailAnalysisPage() {
               <section className="result-panel empty-result">
                 <Mail size={28} />
                 <h3>Content Analysis Results</h3>
+
                 <p>
-                  Submit email content to view the risk assessment
-                  and phishing indicators returned by the analyzer.
+                  Submit email content to view the risk assessment and
+                  phishing indicators returned by the analyzer.
                 </p>
               </section>
             )}
@@ -1204,7 +1381,9 @@ function App() {
         />
       )}
 
-      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+      <aside
+        className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}
+      >
         <div className="sidebar-brand">
           <div className="brand-icon">
             <ShieldCheck size={27} />
@@ -1294,6 +1473,7 @@ function App() {
 
           <div className="topbar-right">
             <span className="topbar-status-dot" />
+
             <span className="topbar-status-text">
               Security Workspace
             </span>
@@ -1316,4 +1496,3 @@ function App() {
 }
 
 export default App;
-
