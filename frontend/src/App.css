@@ -2550,3 +2550,255 @@ button:disabled {
   }
 }
 
+
+
+
+
+/* ================================
+   PHISHGUARD EMAIL ANALYZER
+================================ */
+
+.email-analysis-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0;
+  padding: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.email-analysis-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 180px;
+  padding: 13px 16px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.email-analysis-tab:hover {
+  background: #ffffff;
+  color: #0f766e;
+}
+
+.email-analysis-tab.active {
+  background: #ffffff;
+  color: #0f766e;
+  border-color: #ccfbf1;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.05);
+}
+
+.email-analysis-tab:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 3px;
+}
+
+/* ================================
+   EMAIL ADDRESS INPUT
+================================ */
+
+.input-with-icon input {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #86efac;
+}
+
+.input-with-icon input::placeholder {
+  color: #6b9b84;
+}
+
+.input-with-icon input:focus {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #16a34a;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+/* ================================
+   EMAIL CONTENT WRITING BOX
+================================ */
+
+.email-textarea {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  box-sizing: border-box;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.email-textarea::placeholder {
+  color: #6b9b84;
+}
+
+.email-textarea:hover,
+.input-with-icon input:hover {
+  border-color: #22c55e;
+}
+
+.email-textarea:focus {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.email-textarea:disabled,
+.input-with-icon input:disabled {
+  background: #f0fdf4;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+/* ================================
+   EMAIL ANALYZER LAYOUT
+================================ */
+
+.email-analysis-tabs + .analysis-layout {
+  margin-top: 0;
+}
+
+.email-analysis-tabs ~ .analysis-layout .analysis-form-panel {
+  align-self: start;
+}
+
+.email-analysis-tabs ~ .analysis-layout .result-panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ================================
+   MOBILE RESPONSIVENESS
+================================ */
+
+@media (max-width: 640px) {
+  .email-analysis-tabs {
+    gap: 8px;
+    padding: 5px;
+  }
+
+  .email-analysis-tab {
+    min-width: 100%;
+    padding: 12px;
+    font-size: 13px;
+  }
+
+  .email-textarea {
+    min-height: 170px;
+    padding: 12px;
+  }
+}
+
+
+/* MATCH ALL INPUT BOXES WITH PHISHGUARD THEME */
+
+.input-with-icon,
+.password-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 15px;
+  box-sizing: border-box;
+  color: #7ddcaf;
+  background: #0b1511;
+  border: 1px solid #30483b;
+  border-radius: 11px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-with-icon:focus-within,
+.password-input-wrapper:focus-within {
+  border-color: #56c991;
+  box-shadow: 0 0 0 3px rgba(86, 201, 145, 0.1);
+}
+
+.input-with-icon svg,
+.password-input-wrapper svg {
+  flex-shrink: 0;
+}
+
+.input-with-icon input,
+.password-input-wrapper input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  padding: 15px 0;
+  color: #eef7f1;
+  background: transparent;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.input-with-icon input::placeholder,
+.password-input-wrapper input::placeholder {
+  color: #65776d;
+}
+
+/* EMAIL CONTENT BOX */
+
+.email-textarea {
+  display: block;
+  width: 100%;
+  min-height: 170px;
+  padding: 14px;
+  box-sizing: border-box;
+  color: #eef7f1;
+  background: #0b1511;
+  border: 1px solid #30483b;
+  border-radius: 11px;
+  outline: none;
+  box-shadow: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.email-textarea::placeholder {
+  color: #65776d;
+}
+
+.email-textarea:focus {
+  color: #eef7f1;
+  background: #0b1511;
+  border-color: #56c991;
+  box-shadow: 0 0 0 3px rgba(86, 201, 145, 0.1);
+}
+
+
+
+
+
+
+
+
+

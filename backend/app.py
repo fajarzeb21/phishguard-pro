@@ -50,6 +50,8 @@ from analyzers.url_analyzer import analyze_url
 
 from analyzers.email_analyzer import analyze_email
 
+from analyzers.email_address_analyzer import analyze_email_address
+
 # -----------------------------
 
 # FLASK APPLICATION
@@ -372,6 +374,44 @@ def analyze_email_route():
 
         }), 500
 
+
+# -----------------------------
+# EMAIL ADDRESS ANALYSIS
+# -----------------------------
+
+@app.route("/api/analyze-email-address", methods=["POST"])
+def analyze_email_address_route():
+    data = request.get_json(silent=True) or {}
+    email = data.get("email", "")
+
+    if not isinstance(email, str) or not email.strip():
+        return jsonify({
+            "success": False,
+            "error": "Please enter an email address."
+        }), 400
+
+    if len(email) > 254:
+        return jsonify({
+            "success": False,
+            "error": "Email address is too long."
+        }), 400
+
+    try:
+        result = analyze_email_address(email)
+
+        if not result.get("success"):
+            return jsonify(result), 400
+
+        # Do not store submitted email addresses in public history.
+        return jsonify(result)
+
+    except Exception:
+        app.logger.exception("Email address analysis failed")
+
+        return jsonify({
+            "success": False,
+            "error": "Email address analysis failed. Please try again."
+        }), 500
 # -----------------------------
 
 # INVESTIGATION HISTORY

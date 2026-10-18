@@ -152,9 +152,7 @@ function DNSReport({ dnsData }) {
       <section className="dns-report">
         <div className="dns-report-header">
           <div>
-            <span className="page-eyebrow">
-              DOMAIN INTELLIGENCE
-            </span>
+            <span className="page-eyebrow">DOMAIN INTELLIGENCE</span>
             <h2>DNS Report</h2>
             <p>
               DNS information was not included in the backend response.
@@ -210,9 +208,7 @@ function DNSReport({ dnsData }) {
     <section className="dns-report">
       <div className="dns-report-header">
         <div>
-          <span className="page-eyebrow">
-            DOMAIN INTELLIGENCE
-          </span>
+          <span className="page-eyebrow">DOMAIN INTELLIGENCE</span>
           <h2>DNS Report</h2>
           <p>Domain infrastructure information</p>
         </div>
@@ -232,15 +228,9 @@ function DNSReport({ dnsData }) {
           const values = getRecordValues(record.key);
 
           return (
-            <div
-              className="dns-record-card"
-              key={record.key}
-            >
+            <div className="dns-record-card" key={record.key}>
               <div className="dns-record-card-heading">
-                <span className="dns-record-type">
-                  {record.type}
-                </span>
-
+                <span className="dns-record-type">{record.type}</span>
                 <h3>{record.label}</h3>
               </div>
 
@@ -281,10 +271,7 @@ function DNSReport({ dnsData }) {
                 <AlertTriangle size={17} />
 
                 <div>
-                  <strong>
-                    {finding.name || "DNS Finding"}
-                  </strong>
-
+                  <strong>{finding.name || "DNS Finding"}</strong>
                   <p>
                     {finding.evidence ||
                       finding.message ||
@@ -346,12 +333,8 @@ function ThreatIntelligence({ data }) {
     <section className="dns-report">
       <div className="dns-report-header">
         <div>
-          <span className="page-eyebrow">
-            THREAT INTELLIGENCE
-          </span>
-
+          <span className="page-eyebrow">THREAT INTELLIGENCE</span>
           <h2>Threat Intelligence Results</h2>
-
           <p>External threat indicator information</p>
         </div>
 
@@ -363,15 +346,9 @@ function ThreatIntelligence({ data }) {
       {providers.length > 0 ? (
         <div className="dns-record-grid">
           {providers.map(([key, value]) => (
-            <div
-              className="dns-record-card"
-              key={key}
-            >
+            <div className="dns-record-card" key={key}>
               <div className="dns-record-card-heading">
-                <span className="dns-record-type">
-                  TI
-                </span>
-
+                <span className="dns-record-type">TI</span>
                 <h3>{formatLabel(key)}</h3>
               </div>
 
@@ -379,16 +356,12 @@ function ThreatIntelligence({ data }) {
               value !== null &&
               !Array.isArray(value) ? (
                 <ul className="dns-record-list">
-                  {Object.entries(value).map(
-                    ([nestedKey, nestedValue]) => (
-                      <li key={nestedKey}>
-                        <strong>
-                          {formatLabel(nestedKey)}:
-                        </strong>{" "}
-                        <code>{formatValue(nestedValue)}</code>
-                      </li>
-                    )
-                  )}
+                  {Object.entries(value).map(([nestedKey, nestedValue]) => (
+                    <li key={nestedKey}>
+                      <strong>{formatLabel(nestedKey)}:</strong>{" "}
+                      <code>{formatValue(nestedValue)}</code>
+                    </li>
+                  ))}
                 </ul>
               ) : (
                 <p>{formatValue(value)}</p>
@@ -422,6 +395,7 @@ function AnalysisResult({ result, type }) {
   const target =
     result.url ||
     result.email ||
+    result.email_address ||
     result.target ||
     result.hostname ||
     "Analysis target";
@@ -441,10 +415,7 @@ function AnalysisResult({ result, type }) {
     <div className="result-panel">
       <div className="section-heading">
         <div>
-          <span className="page-eyebrow">
-            INVESTIGATION COMPLETE
-          </span>
-
+          <span className="page-eyebrow">INVESTIGATION COMPLETE</span>
           <h2>Analysis Results</h2>
         </div>
 
@@ -505,7 +476,6 @@ function AnalysisResult({ result, type }) {
 
         <div className="result-type">
           <Activity size={17} />
-
           <span>
             {findings.length} finding
             {findings.length === 1 ? "" : "s"} identified
@@ -516,10 +486,7 @@ function AnalysisResult({ result, type }) {
       <div className="findings-section">
         <div className="section-heading">
           <div>
-            <span className="page-eyebrow">
-              INVESTIGATION DETAILS
-            </span>
-
+            <span className="page-eyebrow">INVESTIGATION DETAILS</span>
             <h3>Analysis Findings</h3>
           </div>
         </div>
@@ -578,9 +545,7 @@ function AnalysisResult({ result, type }) {
                     </p>
 
                     {finding.points !== undefined && (
-                      <p>
-                        Risk points: {finding.points}
-                      </p>
+                      <p>Risk points: {finding.points}</p>
                     )}
 
                     {finding.recommendation && (
@@ -606,9 +571,15 @@ function AnalysisResult({ result, type }) {
         <>
           <DNSReport dnsData={dnsData} />
 
-          {threatData && (
-            <ThreatIntelligence data={threatData} />
-          )}
+          {threatData && <ThreatIntelligence data={threatData} />}
+        </>
+      )}
+
+      {type === "email-address" && (
+        <>
+          {dnsData && <DNSReport dnsData={dnsData} />}
+
+          {threatData && <ThreatIntelligence data={threatData} />}
         </>
       )}
 
@@ -638,7 +609,7 @@ function DashboardPage({ setPage }) {
     {
       title: "Email Analysis",
       description:
-        "Examine email content for phishing indicators and suspicious language.",
+        "Examine email addresses and message content for phishing indicators.",
       icon: Mail,
       page: "email",
     },
@@ -655,9 +626,7 @@ function DashboardPage({ setPage }) {
     <div className="dashboard-page">
       <section className="welcome-banner">
         <div className="welcome-content">
-          <span className="welcome-label">
-            PHISHGUARD PRO
-          </span>
+          <span className="welcome-label">PHISHGUARD PRO</span>
 
           <h1>
             Investigate threats.
@@ -688,10 +657,7 @@ function DashboardPage({ setPage }) {
       <section className="dashboard-section">
         <div className="section-heading">
           <div>
-            <span className="page-eyebrow">
-              SECURITY TOOLS
-            </span>
-
+            <span className="page-eyebrow">SECURITY TOOLS</span>
             <h2>Investigation Center</h2>
           </div>
         </div>
@@ -730,7 +696,6 @@ function DashboardPage({ setPage }) {
 
         <div>
           <h3>Investigate Before You Trust</h3>
-
           <p>
             Never enter passwords or sensitive information on suspicious
             websites. Use investigation tools as one part of your security
@@ -784,12 +749,8 @@ function URLAnalysisPage() {
   return (
     <div className="analysis-page">
       <div className="page-header">
-        <span className="page-eyebrow">
-          INVESTIGATION TOOL
-        </span>
-
+        <span className="page-eyebrow">INVESTIGATION TOOL</span>
         <h1>URL Analysis</h1>
-
         <p>
           Investigate a URL and review its security indicators,
           threat information, and DNS records.
@@ -863,9 +824,7 @@ function URLAnalysisPage() {
           ) : (
             <section className="result-panel empty-result">
               <Search size={28} />
-
               <h3>Analysis Results</h3>
-
               <p>
                 Enter a URL and start an investigation to view its
                 risk assessment, findings, DNS information, and
@@ -881,128 +840,302 @@ function URLAnalysisPage() {
 
 // Email Analysis Page
 function EmailAnalysisPage() {
-  const [email, setEmail] = useState("");
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState("address");
 
-  async function handleAnalyze(event) {
+  const [emailAddress, setEmailAddress] = useState("");
+  const [emailContent, setEmailContent] = useState("");
+
+  const [addressResult, setAddressResult] = useState(null);
+  const [contentResult, setContentResult] = useState(null);
+
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [contentLoading, setContentLoading] = useState(false);
+
+  const [addressError, setAddressError] = useState("");
+  const [contentError, setContentError] = useState("");
+
+  async function handleAddressAnalyze(event) {
     event.preventDefault();
 
-    setError("");
-    setResult(null);
+    setAddressError("");
+    setAddressResult(null);
 
-    const cleanedEmail = email.trim();
+    const cleanedAddress = emailAddress.trim();
 
-    if (!cleanedEmail) {
-      setError("Please enter email content to analyze.");
+    if (!cleanedAddress) {
+      setAddressError("Please enter an email address.");
       return;
     }
 
-    setLoading(true);
+    setAddressLoading(true);
+
+    try {
+      const data = await requestAPI("/analyze-email-address", {
+        email: cleanedAddress,
+      });
+
+      setAddressResult(data);
+    } catch (err) {
+      setAddressError(
+        err.message || "Email address analysis failed."
+      );
+    } finally {
+      setAddressLoading(false);
+    }
+  }
+
+  async function handleContentAnalyze(event) {
+    event.preventDefault();
+
+    setContentError("");
+    setContentResult(null);
+
+    const cleanedContent = emailContent.trim();
+
+    if (!cleanedContent) {
+      setContentError("Please enter email content to analyze.");
+      return;
+    }
+
+    setContentLoading(true);
 
     try {
       const data = await requestAPI("/analyze-email", {
-        email_text: cleanedEmail,
+        email_text: cleanedContent,
       });
 
-      setResult(data);
+      setContentResult(data);
     } catch (err) {
-      setError(err.message || "The email analysis request failed.");
+      setContentError(
+        err.message || "Email content analysis failed."
+      );
     } finally {
-      setLoading(false);
+      setContentLoading(false);
     }
   }
 
   return (
     <div className="analysis-page">
       <div className="page-header">
-        <span className="page-eyebrow">
-          INVESTIGATION TOOL
-        </span>
-
+        <span className="page-eyebrow">INVESTIGATION TOOL</span>
         <h1>Email Analysis</h1>
-
         <p>
-          Examine email content for suspicious language, phishing
-          indicators, and potential social engineering attempts.
+          Investigate suspicious email addresses and examine
+          email messages for phishing indicators.
         </p>
       </div>
 
-      <div className="analysis-layout">
-        <section className="analysis-form-panel">
-          <div className="form-panel-heading">
-            <div className="form-panel-icon">
-              <Mail size={23} />
-            </div>
+      <div className="email-analysis-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          id="email-address-tab"
+          aria-selected={activeTab === "address"}
+          className={`email-analysis-tab ${
+            activeTab === "address" ? "active" : ""
+          }`}
+          onClick={() => setActiveTab("address")}
+        >
+          <Mail size={19} />
+          Email Address Analysis
+        </button>
 
-            <div>
-              <h2>Investigate an Email</h2>
-              <p>Paste the suspicious email text below.</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleAnalyze}>
-            <label htmlFor="email-input">Email Content</label>
-
-            <textarea
-              id="email-input"
-              className="email-textarea"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="Paste the suspicious email message here..."
-              rows={8}
-            />
-
-            <button
-              type="submit"
-              className="primary-button analyze-button"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <LoaderCircle size={18} className="spin-icon" />
-                  Analyzing Email...
-                </>
-              ) : (
-                <>
-                  <Search size={18} />
-                  Analyze Email
-                </>
-              )}
-            </button>
-          </form>
-
-          {error && (
-            <div className="error-message">
-              <XCircle size={19} />
-              <p>{error}</p>
-            </div>
-          )}
-
-          <p className="form-safety-note">
-            Remove passwords, private information, and other sensitive
-            data before submitting email content.
-          </p>
-        </section>
-
-        <div>
-          {result ? (
-            <AnalysisResult result={result} type="email" />
-          ) : (
-            <section className="result-panel empty-result">
-              <Mail size={28} />
-
-              <h3>Analysis Results</h3>
-
-              <p>
-                Submit email content to view the risk assessment and
-                phishing indicators returned by the analyzer.
-              </p>
-            </section>
-          )}
-        </div>
+        <button
+          type="button"
+          role="tab"
+          id="email-content-tab"
+          aria-selected={activeTab === "content"}
+          className={`email-analysis-tab ${
+            activeTab === "content" ? "active" : ""
+          }`}
+          onClick={() => setActiveTab("content")}
+        >
+          <Search size={19} />
+          Email Content Analysis
+        </button>
       </div>
+
+      {activeTab === "address" && (
+        <div
+          className="analysis-layout"
+          role="tabpanel"
+          aria-labelledby="email-address-tab"
+        >
+          <section className="analysis-form-panel">
+            <div className="form-panel-heading">
+              <div className="form-panel-icon">
+                <Mail size={23} />
+              </div>
+
+              <div>
+                <h2>Investigate an Email Address</h2>
+                <p>
+                  Enter the sender address you want to investigate.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddressAnalyze}>
+              <label htmlFor="email-address-input">
+                Email Address
+              </label>
+
+              <div className="input-with-icon">
+                <Mail size={19} />
+
+                <input
+                  id="email-address-input"
+                  type="email"
+                  value={emailAddress}
+                  onChange={(event) =>
+                    setEmailAddress(event.target.value)
+                  }
+                  placeholder="security@example.com"
+                  autoComplete="off"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="primary-button analyze-button"
+                disabled={addressLoading}
+              >
+                {addressLoading ? (
+                  <>
+                    <LoaderCircle size={18} className="spin-icon" />
+                    Investigating Address...
+                  </>
+                ) : (
+                  <>
+                    <Search size={18} />
+                    Analyze Email Address
+                  </>
+                )}
+              </button>
+            </form>
+
+            {addressError && (
+              <div className="error-message">
+                <XCircle size={19} />
+                <p>{addressError}</p>
+              </div>
+            )}
+
+            <p className="form-safety-note">
+              Address analysis can inspect domain configuration
+              and available reputation indicators. It cannot
+              independently confirm mailbox ownership.
+            </p>
+          </section>
+
+          <div>
+            {addressResult ? (
+              <AnalysisResult
+                result={addressResult}
+                type="email-address"
+              />
+            ) : (
+              <section className="result-panel empty-result">
+                <Mail size={28} />
+                <h3>Address Analysis Results</h3>
+                <p>
+                  Enter an email address to investigate its
+                  domain configuration and available security
+                  indicators.
+                </p>
+              </section>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "content" && (
+        <div
+          className="analysis-layout"
+          role="tabpanel"
+          aria-labelledby="email-content-tab"
+        >
+          <section className="analysis-form-panel">
+            <div className="form-panel-heading">
+              <div className="form-panel-icon">
+                <Search size={23} />
+              </div>
+
+              <div>
+                <h2>Investigate Email Content</h2>
+                <p>Paste the suspicious message below.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleContentAnalyze}>
+              <label htmlFor="email-content-input">
+                Email Content
+              </label>
+
+              <textarea
+                id="email-content-input"
+                className="email-textarea"
+                value={emailContent}
+                onChange={(event) =>
+                  setEmailContent(event.target.value)
+                }
+                placeholder="Paste the suspicious email message here..."
+                rows={8}
+                required
+              />
+
+              <button
+                type="submit"
+                className="primary-button analyze-button"
+                disabled={contentLoading}
+              >
+                {contentLoading ? (
+                  <>
+                    <LoaderCircle size={18} className="spin-icon" />
+                    Analyzing Content...
+                  </>
+                ) : (
+                  <>
+                    <Search size={18} />
+                    Analyze Email Content
+                  </>
+                )}
+              </button>
+            </form>
+
+            {contentError && (
+              <div className="error-message">
+                <XCircle size={19} />
+                <p>{contentError}</p>
+              </div>
+            )}
+
+            <p className="form-safety-note">
+              Remove passwords, private information, and other
+              sensitive data before submitting email content.
+            </p>
+          </section>
+
+          <div>
+            {contentResult ? (
+              <AnalysisResult
+                result={contentResult}
+                type="email"
+              />
+            ) : (
+              <section className="result-panel empty-result">
+                <Mail size={28} />
+                <h3>Content Analysis Results</h3>
+                <p>
+                  Submit email content to view the risk assessment
+                  and phishing indicators returned by the analyzer.
+                </p>
+              </section>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1091,9 +1224,7 @@ function App() {
           </button>
         </div>
 
-        <div className="sidebar-section-label">
-          WORKSPACE
-        </div>
+        <div className="sidebar-section-label">WORKSPACE</div>
 
         <nav className="sidebar-nav">
           {navigation.map((item) => {
@@ -1108,7 +1239,6 @@ function App() {
                 onClick={() => changePage(item.id)}
               >
                 <Icon size={19} />
-
                 <span>{item.label}</span>
 
                 {activePage === item.id && (
@@ -1127,9 +1257,7 @@ function App() {
 
             <div>
               <strong>Security First</strong>
-              <p>
-                Investigate suspicious activity responsibly.
-              </p>
+              <p>Investigate suspicious activity responsibly.</p>
             </div>
           </div>
 
@@ -1159,16 +1287,13 @@ function App() {
 
             <div className="breadcrumb">
               <span>PhishGuard Pro</span>
-
               <span className="breadcrumb-divider">/</span>
-
               <strong>{currentPage}</strong>
             </div>
           </div>
 
           <div className="topbar-right">
             <span className="topbar-status-dot" />
-
             <span className="topbar-status-text">
               Security Workspace
             </span>
@@ -1179,13 +1304,10 @@ function App() {
           </div>
         </header>
 
-        <div className="main-content">
-          {renderPage()}
-        </div>
+        <div className="main-content">{renderPage()}</div>
 
         <footer className="app-footer">
           <span>PhishGuard Pro</span>
-
           <span>Cybersecurity Investigation Toolkit</span>
         </footer>
       </main>
