@@ -129,20 +129,23 @@ def analyze_email_address(email):
             "risk_level": risk_level,
             "finding_count": len(findings),
             "findings": findings,
-            "reputation_intelligence": {
-                "provider": "FFraud",
-                "available": True,
-                "is_disposable": data.get("is_disposable"),
-                "valid_format": data.get("valid_format"),
-                "is_known_spammer": data.get("is_known_spammer"),
-                "community_blacklisted": data.get(
-                    "community_blacklisted"
-                ),
-                "blacklist_reports": data.get("blacklist_reports"),
-                "detection_source": data.get("detection_source"),
-                "safe_domain": data.get("safe_domain"),
-                "is_role_address": data.get("is_role_address")
-            },
+
+        "reputation_intelligence": {
+            "provider": "FFraud",
+            "available": True,
+            "email": email,
+            "domain": data.get("domain") or email.rsplit("@", 1)[-1],
+            "is_disposable": data.get("is_disposable"),
+            "valid_format": data.get("valid_format"),
+            "is_known_spammer": data.get("is_known_spammer"),
+            "community_blacklisted": data.get("community_blacklisted"),
+            "blacklist_reports": data.get("blacklist_reports", 0),
+            "detection_source": data.get("detection_source"),
+            "safe_domain": data.get("safe_domain"),
+            "is_role_address": data.get("is_role_address")
+        },
+
+
             "disclaimer": (
                 "This analysis uses third-party email reputation "
                 "indicators. A clean result does not prove that "
